@@ -7,11 +7,11 @@ using ProximityD.Services;
 namespace ProximityD.Tests;
 
 // Testable subclass that allows us to control PingAsync results
-internal class TestablWifiPresenceService : WifiPresenceService
+internal class TestableWifiPresenceService : WifiPresenceService
 {
     private readonly WifiPresenceState _pingResult;
 
-    public TestablWifiPresenceService(
+    public TestableWifiPresenceService(
         ILogger<WifiPresenceService> logger,
         AppSettings settings,
         WifiPresenceState pingResult)
@@ -46,7 +46,7 @@ public class WifiPresenceServiceTests
     public void Start_WhenDisabled_DoesNotStartTimer()
     {
         _settings.EnableWifiPresence = false;
-        var service = new TestablWifiPresenceService(_loggerMock.Object, _settings, WifiPresenceState.Present);
+        var service = new TestableWifiPresenceService(_loggerMock.Object, _settings, WifiPresenceState.Present);
 
         // Should not throw and should not start timer
         var act = () => service.Start();
@@ -57,7 +57,7 @@ public class WifiPresenceServiceTests
     public void Start_WhenHostnameEmpty_DoesNotStartTimer()
     {
         _settings.WifiDeviceHostname = string.Empty;
-        var service = new TestablWifiPresenceService(_loggerMock.Object, _settings, WifiPresenceState.Present);
+        var service = new TestableWifiPresenceService(_loggerMock.Object, _settings, WifiPresenceState.Present);
 
         var act = () => service.Start();
         act.Should().NotThrow();
@@ -66,14 +66,14 @@ public class WifiPresenceServiceTests
     [Fact]
     public void CurrentState_InitiallyUnknown()
     {
-        var service = new TestablWifiPresenceService(_loggerMock.Object, _settings, WifiPresenceState.Present);
+        var service = new TestableWifiPresenceService(_loggerMock.Object, _settings, WifiPresenceState.Present);
         service.CurrentState.Should().Be(WifiPresenceState.Unknown);
     }
 
     [Fact]
     public async Task PingAsync_WhenOverridden_ReturnsMockResult()
     {
-        var service = new TestablWifiPresenceService(_loggerMock.Object, _settings, WifiPresenceState.Present);
+        var service = new TestableWifiPresenceService(_loggerMock.Object, _settings, WifiPresenceState.Present);
         var result = await service.PingAsync("test-host");
         result.Should().Be(WifiPresenceState.Present);
     }
@@ -81,7 +81,7 @@ public class WifiPresenceServiceTests
     [Fact]
     public async Task PingAsync_Away_ReturnsAway()
     {
-        var service = new TestablWifiPresenceService(_loggerMock.Object, _settings, WifiPresenceState.Away);
+        var service = new TestableWifiPresenceService(_loggerMock.Object, _settings, WifiPresenceState.Away);
         var result = await service.PingAsync("test-host");
         result.Should().Be(WifiPresenceState.Away);
     }
@@ -89,7 +89,7 @@ public class WifiPresenceServiceTests
     [Fact]
     public void Dispose_CanBeCalledMultipleTimes()
     {
-        var service = new TestablWifiPresenceService(_loggerMock.Object, _settings, WifiPresenceState.Present);
+        var service = new TestableWifiPresenceService(_loggerMock.Object, _settings, WifiPresenceState.Present);
         var act = () =>
         {
             service.Dispose();
@@ -101,16 +101,16 @@ public class WifiPresenceServiceTests
     [Fact]
     public void Stop_WhenNotStarted_DoesNotThrow()
     {
-        var service = new TestablWifiPresenceService(_loggerMock.Object, _settings, WifiPresenceState.Present);
+        var service = new TestableWifiPresenceService(_loggerMock.Object, _settings, WifiPresenceState.Present);
         var act = () => service.Stop();
         act.Should().NotThrow();
     }
 
     [Fact]
-    public void WifiPresenceState_EnumValues_AreCorrect()
+    public void WifiPresenceState_EnumValues_HaveExpectedOrdinals()
     {
-        WifiPresenceState.Present.Should().Be(WifiPresenceState.Present);
-        WifiPresenceState.Away.Should().Be(WifiPresenceState.Away);
-        WifiPresenceState.Unknown.Should().Be(WifiPresenceState.Unknown);
+        ((int)WifiPresenceState.Present).Should().Be(0);
+        ((int)WifiPresenceState.Away).Should().Be(1);
+        ((int)WifiPresenceState.Unknown).Should().Be(2);
     }
 }
