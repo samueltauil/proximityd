@@ -178,9 +178,15 @@ public partial class MainViewModel : ObservableObject
             ProximityStateText = evt.State.ToString();
             CurrentRssi = evt.Rssi;
             SmoothedRssi = evt.SmoothedRssi;
-            DistanceMeters = _distanceEstimator.EstimateDistance(evt.SmoothedRssi);
+            if (_settings.EnableDistanceMode)
+                DistanceMeters = _distanceEstimator.EstimateDistance(evt.SmoothedRssi);
             SignalGraph.AddDataPoint(evt.Timestamp, evt.Rssi, evt.SmoothedRssi);
-            CalibrationWizard.OnRssiReading(evt.SmoothedRssi);
+            // Only feed readings for the selected calibration device to avoid mixing signals
+            if (string.IsNullOrEmpty(CalibrationWizard.SelectedDeviceId) ||
+                CalibrationWizard.SelectedDeviceId == evt.DeviceId)
+            {
+                CalibrationWizard.OnRssiReading(evt.SmoothedRssi);
+            }
             AddLogEntry($"[{evt.Timestamp:HH:mm:ss}] {evt.DeviceName}: {evt.State} (RSSI: {evt.Rssi}, Smoothed: {evt.SmoothedRssi:F1})");
 
             // Update device in list

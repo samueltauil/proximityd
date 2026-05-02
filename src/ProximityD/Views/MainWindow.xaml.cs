@@ -23,6 +23,8 @@ public partial class MainWindow : Window
 
     private void OpenCalibrationWizard()
     {
+        // Reset the singleton ViewModel so every wizard session starts fresh.
+        _viewModel.CalibrationWizard.Reset();
         var wizard = new CalibrationWizardWindow(_viewModel.CalibrationWizard);
         wizard.Owner = this;
         _viewModel.CalibrationWizard.ThresholdsApplied += OnThresholdsApplied;

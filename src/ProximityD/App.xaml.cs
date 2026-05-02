@@ -19,12 +19,14 @@ public partial class App : Application
     private IHost? _host;
     private TaskbarIcon? _trayIcon;
     private MainWindow? _mainWindow;
+    private AppSettings _settings = new();
 
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
         var settings = AppSettings.Load();
+        _settings = settings;
 
         // Map settings LogLevel to Serilog level
         var logLevel = settings.LogLevel?.ToLowerInvariant() switch
@@ -93,12 +95,28 @@ public partial class App : Application
 
     private void OnNotificationRequested(object? sender, NotificationRequest e)
     {
-        _trayIcon?.ShowBalloonTip(e.Title, e.Message, e.Type switch
+        if (!_settings.ShowNotifications) return;
+
+        // Build a simple custom balloon so the configured NotificationTimeoutSeconds is respected.
+        var balloon = new System.Windows.Controls.Border
         {
-            NotificationType.Warning => BalloonIcon.Warning,
-            NotificationType.Error => BalloonIcon.Error,
-            _ => BalloonIcon.Info
-        });
+            Background = System.Windows.Media.Brushes.WhiteSmoke,
+            BorderBrush = System.Windows.Media.Brushes.Gray,
+            BorderThickness = new System.Windows.Thickness(1),
+            CornerRadius = new System.Windows.CornerRadius(4),
+            Padding = new System.Windows.Thickness(10),
+            Child = new System.Windows.Controls.TextBlock
+            {
+                Text = $"{e.Title}\n{e.Message}",
+                TextWrapping = System.Windows.TextWrapping.Wrap,
+                MaxWidth = 280
+            }
+        };
+
+        _trayIcon?.ShowCustomBalloon(
+            balloon,
+            System.Windows.Controls.Primitives.PopupAnimation.Slide,
+            _settings.NotificationTimeoutSeconds * 1000);
     }
 
     private void SetupTrayIcon()

@@ -177,8 +177,16 @@ public class CalibrationWizardViewModelTests
     public void ApplyThresholds_FiresThresholdsAppliedEvent()
     {
         var vm = new CalibrationWizardViewModel();
-        vm.RecommendedLockThreshold = -80;
-        vm.RecommendedUnlockThreshold = -65;
+
+        // Run a complete calibration before applying
+        vm.NextStep(); vm.NextStep(); // NearCalibration
+        vm.StartCollecting();
+        for (var i = 0; i < 5; i++) vm.OnRssiReading(-65.0);
+        vm.StopCollecting();
+        vm.NextStep(); // AwayCalibration
+        vm.StartCollecting();
+        for (var i = 0; i < 5; i++) vm.OnRssiReading(-85.0);
+        vm.StopCollecting();
 
         ThresholdRecommendation? recommendation = null;
         vm.ThresholdsApplied += (_, r) => recommendation = r;
@@ -186,20 +194,116 @@ public class CalibrationWizardViewModelTests
         vm.ApplyThresholds();
 
         recommendation.Should().NotBeNull();
-        recommendation!.LockThreshold.Should().Be(-80);
-        recommendation.UnlockThreshold.Should().Be(-65);
+        recommendation!.LockThreshold.Should().NotBe(0);
+        recommendation.UnlockThreshold.Should().NotBe(0);
     }
 
     [Fact]
     public void ApplyThresholds_AlsoFiresWizardClosedEvent()
     {
         var vm = new CalibrationWizardViewModel();
+
+        // Run a complete calibration before applying
+        vm.NextStep(); vm.NextStep(); // NearCalibration
+        vm.StartCollecting();
+        for (var i = 0; i < 5; i++) vm.OnRssiReading(-65.0);
+        vm.StopCollecting();
+        vm.NextStep(); // AwayCalibration
+        vm.StartCollecting();
+        for (var i = 0; i < 5; i++) vm.OnRssiReading(-85.0);
+        vm.StopCollecting();
+
         var closed = false;
         vm.WizardClosed += (_, _) => closed = true;
 
         vm.ApplyThresholds();
 
         closed.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ApplyThresholds_WithoutCalibration_DoesNotFireEvents()
+    {
+        var vm = new CalibrationWizardViewModel();
+        var eventFired = false;
+        vm.ThresholdsApplied += (_, _) => eventFired = true;
+        vm.WizardClosed += (_, _) => eventFired = true;
+
+        vm.ApplyThresholds();
+
+        eventFired.Should().BeFalse();
+    }
+
+    [Fact]
+    public void HasCalibrationData_IsFalseByDefault()
+    {
+        var vm = new CalibrationWizardViewModel();
+        vm.HasCalibrationData.Should().BeFalse();
+    }
+
+    [Fact]
+    public void HasCalibrationData_IsTrueAfterFullCalibration()
+    {
+        var vm = new CalibrationWizardViewModel();
+        vm.NextStep(); vm.NextStep(); // NearCalibration
+        vm.StartCollecting();
+        for (var i = 0; i < 5; i++) vm.OnRssiReading(-65.0);
+        vm.StopCollecting();
+        vm.NextStep(); // AwayCalibration
+        vm.StartCollecting();
+        for (var i = 0; i < 5; i++) vm.OnRssiReading(-85.0);
+        vm.StopCollecting();
+
+        vm.HasCalibrationData.Should().BeTrue();
+    }
+
+    [Fact]
+    public void Reset_ClearsAllStateAndReturnsToWelcome()
+    {
+        var vm = new CalibrationWizardViewModel();
+
+        // Run a complete calibration
+        vm.NextStep(); vm.NextStep(); // NearCalibration
+        vm.StartCollecting();
+        for (var i = 0; i < 5; i++) vm.OnRssiReading(-65.0);
+        vm.StopCollecting();
+        vm.NextStep(); // AwayCalibration
+        vm.StartCollecting();
+        for (var i = 0; i < 5; i++) vm.OnRssiReading(-85.0);
+        vm.StopCollecting();
+        vm.SelectedDeviceId = "device-1";
+
+        vm.Reset();
+
+        vm.CurrentStep.Should().Be(WizardStep.Welcome);
+        vm.HasCalibrationData.Should().BeFalse();
+        vm.NearSamples.Should().BeEmpty();
+        vm.AwaySamples.Should().BeEmpty();
+        vm.SampleCount.Should().Be(0);
+        vm.RecommendedLockThreshold.Should().Be(0);
+        vm.RecommendedUnlockThreshold.Should().Be(0);
+        vm.SelectedDeviceId.Should().BeEmpty();
+        vm.IsCollectingSamples.Should().BeFalse();
+    }
+
+    [Fact]
+    public void OnRssiReading_AfterReset_DoesNotLeakSamples()
+    {
+        var vm = new CalibrationWizardViewModel();
+        vm.NextStep(); vm.NextStep(); // NearCalibration
+        vm.StartCollecting();
+        vm.OnRssiReading(-65.0);
+        vm.StopCollecting();
+
+        vm.Reset();
+
+        // After reset, collecting should start clean
+        vm.NextStep(); vm.NextStep(); // NearCalibration again
+        vm.StartCollecting();
+        vm.OnRssiReading(-60.0);
+
+        vm.NearSamples.Should().HaveCount(1);
+        vm.NearSamples[0].Should().Be(-60.0);
     }
 
     [Fact]

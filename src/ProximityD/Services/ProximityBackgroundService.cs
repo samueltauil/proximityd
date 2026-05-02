@@ -14,6 +14,7 @@ public class ProximityBackgroundService : BackgroundService
     private readonly BleScanner _bleScanner;
     private readonly ProximityEngine _proximityEngine;
     private readonly WindowsActionService _actionService;
+    private readonly WifiPresenceService _wifiPresenceService;
     private readonly AppSettings _settings;
 
     public event EventHandler<ProximityEvent>? ProximityStateChanged;
@@ -24,12 +25,14 @@ public class ProximityBackgroundService : BackgroundService
         BleScanner bleScanner,
         ProximityEngine proximityEngine,
         WindowsActionService actionService,
+        WifiPresenceService wifiPresenceService,
         AppSettings settings)
     {
         _logger = logger;
         _bleScanner = bleScanner;
         _proximityEngine = proximityEngine;
         _actionService = actionService;
+        _wifiPresenceService = wifiPresenceService;
         _settings = settings;
 
         // Wire up events
@@ -49,6 +52,8 @@ public class ProximityBackgroundService : BackgroundService
         }
 
         _bleScanner.StartScanning();
+        _wifiPresenceService.PresenceChanged += OnWifiPresenceChanged;
+        _wifiPresenceService.Start();
         StatusChanged?.Invoke(this, "Scanning...");
 
         try
@@ -66,6 +71,8 @@ public class ProximityBackgroundService : BackgroundService
         }
         finally
         {
+            _wifiPresenceService.PresenceChanged -= OnWifiPresenceChanged;
+            _wifiPresenceService.Stop();
             _bleScanner.StopScanning();
             StatusChanged?.Invoke(this, "Stopped");
             _logger.LogInformation("ProximityD background service stopped");
@@ -83,12 +90,19 @@ public class ProximityBackgroundService : BackgroundService
         _actionService.OnProximityChanged(evt.State);
     }
 
+    private void OnWifiPresenceChanged(object? sender, WifiPresenceState state)
+    {
+        _logger.LogInformation("WiFi presence state: {State}", state);
+        StatusChanged?.Invoke(this, $"WiFi: {state}");
+    }
+
     public override void Dispose()
     {
         _bleScanner.DeviceDetected -= OnDeviceDetected;
         _proximityEngine.ProximityChanged -= OnProximityChanged;
         _bleScanner.Dispose();
         _proximityEngine.Dispose();
+        _wifiPresenceService.Dispose();
         base.Dispose();
     }
 }

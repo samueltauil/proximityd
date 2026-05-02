@@ -53,6 +53,10 @@ public partial class CalibrationWizardViewModel : ObservableObject
     private bool _isCollectingSamples;
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ApplyThresholdsCommand))]
+    private bool _hasCalibrationData;
+
+    [ObservableProperty]
     private string _selectedDeviceId = string.Empty;
 
     /// <summary>Raised when the wizard requests to apply thresholds to settings.</summary>
@@ -111,9 +115,12 @@ public partial class CalibrationWizardViewModel : ObservableObject
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(CanExecute = nameof(HasCalibrationData))]
     public void ApplyThresholds()
     {
+        // Guard: never apply zero thresholds that result from an uncompleted calibration run.
+        if (!HasCalibrationData) return;
+
         ThresholdsApplied?.Invoke(this, new ThresholdRecommendation
         {
             LockThreshold = (int)Math.Round(RecommendedLockThreshold),
@@ -177,6 +184,26 @@ public partial class CalibrationWizardViewModel : ObservableObject
             RecommendedLockThreshold = mid - ThresholdHalfGap;
             RecommendedUnlockThreshold = mid + ThresholdHalfGap;
         }
+
+        HasCalibrationData = true;
+    }
+
+    /// <summary>
+    /// Resets the wizard to the initial state so it can be used for a fresh calibration session.
+    /// Should be called before re-showing the wizard dialog.
+    /// </summary>
+    public void Reset()
+    {
+        IsCollectingSamples = false;
+        _nearSamples.Clear();
+        _awaySamples.Clear();
+        SampleCount = 0;
+        RecommendedLockThreshold = 0;
+        RecommendedUnlockThreshold = 0;
+        HasCalibrationData = false;
+        SelectedDeviceId = string.Empty;
+        CurrentStep = WizardStep.Welcome;
+        UpdateInstructionText();
     }
 
     private void UpdateInstructionText()

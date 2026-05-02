@@ -6,7 +6,7 @@ on:
 
 jobs:
   format:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     permissions:
       contents: read
     steps:
@@ -16,6 +16,6 @@ jobs:
         with:
           dotnet-version: '8.0.x'
       - name: Restore
-        run: dotnet restore tests/ProximityD.Tests/ProximityD.Tests.csproj
+        run: dotnet restore ProximityD.sln
       - name: Check formatting
-        run: dotnet format tests/ProximityD.Tests/ProximityD.Tests.csproj --verify-no-changes
+        run: dotnet format ProximityD.sln --verify-no-changes
