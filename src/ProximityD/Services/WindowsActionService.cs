@@ -81,7 +81,8 @@ public class WindowsActionService
     /// <summary>
     /// Attempt to signal presence for unlock.
     /// Note: Windows does not allow silent programmatic unlock for security reasons.
-    /// This method can trigger Windows Hello or provide a notification.
+    /// This method logs the event and fires an ActionPerformed event that the UI can
+    /// use to show a notification. Actual unlock requires user authentication (e.g., Windows Hello).
     /// </summary>
     public bool SignalPresenceForUnlock()
     {

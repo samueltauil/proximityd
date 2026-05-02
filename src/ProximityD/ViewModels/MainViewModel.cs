@@ -51,6 +51,8 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private int _unlockDelay;
 
+    private const int MaxEventLogEntries = 100;
+
     public ObservableCollection<DeviceViewModel> TrackedDevices { get; } = new();
     public ObservableCollection<string> EventLog { get; } = new();
 
@@ -182,7 +184,7 @@ public partial class MainViewModel : ObservableObject
     private void AddLogEntry(string message)
     {
         EventLog.Insert(0, message);
-        if (EventLog.Count > 100) EventLog.RemoveAt(EventLog.Count - 1);
+        if (EventLog.Count > MaxEventLogEntries) EventLog.RemoveAt(EventLog.Count - 1);
     }
 }
 
