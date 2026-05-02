@@ -12,6 +12,7 @@ public class WindowsActionService
 {
     private readonly ILogger<WindowsActionService> _logger;
     private readonly AppSettings _settings;
+    private readonly NotificationService? _notificationService;
     private DateTime _lastLockTime = DateTime.MinValue;
     private DateTime _lastUnlockAttemptTime = DateTime.MinValue;
 
@@ -20,10 +21,11 @@ public class WindowsActionService
 
     public event EventHandler<string>? ActionPerformed;
 
-    public WindowsActionService(ILogger<WindowsActionService> logger, AppSettings settings)
+    public WindowsActionService(ILogger<WindowsActionService> logger, AppSettings settings, NotificationService? notificationService = null)
     {
         _logger = logger;
         _settings = settings;
+        _notificationService = notificationService;
     }
 
     /// <summary>
@@ -103,13 +105,23 @@ public class WindowsActionService
         _logger.LogInformation("Device returned - signaling presence. User may need to authenticate via Windows Hello.");
         ActionPerformed?.Invoke(this, "Device detected - ready to unlock via Windows Hello");
 
-        // On Windows, we cannot programmatically unlock.
-        // Options for the user:
-        // 1. Windows Hello (facial recognition/fingerprint) will auto-trigger
-        // 2. We could implement a custom Credential Provider (advanced)
-        // 3. Show a notification that device is back in range
+        if (_settings.EnableWindowsHelloNotification)
+        {
+            ShowWindowsHelloNotification();
+        }
 
         return true;
+    }
+
+    /// <summary>
+    /// Shows a Windows Hello notification via the NotificationService.
+    /// </summary>
+    public void ShowWindowsHelloNotification()
+    {
+        _notificationService?.Show(
+            "ProximityD — Device Detected",
+            "Your Bluetooth device is back in range. Authenticate with Windows Hello to unlock.",
+            NotificationType.Info);
     }
 
     /// <summary>

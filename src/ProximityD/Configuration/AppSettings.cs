@@ -1,3 +1,4 @@
+using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -60,6 +61,30 @@ public class AppSettings
 
     /// <summary>Whether to show notifications.</summary>
     public bool ShowNotifications { get; set; } = true;
+
+    /// <summary>Bluetooth TX power (RSSI at 1 meter) for distance calculation.</summary>
+    public int TxPowerDbm { get; set; } = -59;
+
+    /// <summary>Environment path loss exponent. 2.0 = free space, 3.0 = indoor with obstacles.</summary>
+    public double PathLossExponent { get; set; } = 2.0;
+
+    /// <summary>Show estimated distance in meters instead of raw RSSI.</summary>
+    public bool EnableDistanceMode { get; set; } = false;
+
+    /// <summary>Enable WiFi-based presence detection as a secondary signal.</summary>
+    public bool EnableWifiPresence { get; set; } = false;
+
+    /// <summary>Hostname or IP address to ping for WiFi presence detection.</summary>
+    public string WifiDeviceHostname { get; set; } = string.Empty;
+
+    /// <summary>How often to ping the device for WiFi presence (seconds).</summary>
+    public int WifiPingIntervalSeconds { get; set; } = 10;
+
+    /// <summary>Show a toast notification when the device returns to encourage authentication.</summary>
+    public bool EnableWindowsHelloNotification { get; set; } = true;
+
+    /// <summary>How long to display the notification (seconds).</summary>
+    public int NotificationTimeoutSeconds { get; set; } = 10;
 
     /// <summary>Log level for file logging.</summary>
     public string LogLevel { get; set; } = "Information";

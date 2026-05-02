@@ -17,17 +17,22 @@
     <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
     <PackageReference Include="System.Text.Json" Version="8.0.5" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
   </ItemGroup>
 
   <!-- Include core source files directly for cross-platform testing -->
   <ItemGroup>
     <Compile Include="..\..\src\ProximityD\Filters\KalmanFilter.cs" Link="Source\KalmanFilter.cs" />
     <Compile Include="..\..\src\ProximityD\Filters\MovingAverageFilter.cs" Link="Source\MovingAverageFilter.cs" />
+    <Compile Include="..\..\src\ProximityD\Filters\PathLossDistanceEstimator.cs" Link="Source\PathLossDistanceEstimator.cs" />
     <Compile Include="..\..\src\ProximityD\Models\ProximityEvent.cs" Link="Source\ProximityEvent.cs" />
     <Compile Include="..\..\src\ProximityD\Models\TrackedDevice.cs" Link="Source\TrackedDevice.cs" />
     <Compile Include="..\..\src\ProximityD\Configuration\AppSettings.cs" Link="Source\AppSettings.cs" />
     <Compile Include="..\..\src\ProximityD\Services\ProximityEngine.cs" Link="Source\ProximityEngine.cs" />
     <Compile Include="..\..\src\ProximityD\Services\WindowsActionService.cs" Link="Source\WindowsActionService.cs" />
+    <Compile Include="..\..\src\ProximityD\Services\WifiPresenceService.cs" Link="Source\WifiPresenceService.cs" />
+    <Compile Include="..\..\src\ProximityD\Services\NotificationService.cs" Link="Source\NotificationService.cs" />
+    <Compile Include="..\..\src\ProximityD\ViewModels\CalibrationWizardViewModel.cs" Link="Source\CalibrationWizardViewModel.cs" />
   </ItemGroup>
 
 </Project>

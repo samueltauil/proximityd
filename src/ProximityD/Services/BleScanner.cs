@@ -49,7 +49,10 @@ public class BleScanner : IDisposable
     /// </summary>
     public void StartScanning()
     {
-        if (_isScanning) return;
+        if (_isScanning)
+        {
+            return;
+        }
 
 #if WINDOWS
         _watcher = new BluetoothLEAdvertisementWatcher
@@ -82,7 +85,10 @@ public class BleScanner : IDisposable
     /// </summary>
     public void StopScanning()
     {
-        if (!_isScanning) return;
+        if (!_isScanning)
+        {
+            return;
+        }
 
 #if WINDOWS
         _watcher?.Stop();
