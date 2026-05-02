@@ -3,9 +3,10 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:oxy="http://oxyplot.org/wpf"
         mc:Ignorable="d"
         Title="ProximityD - Bluetooth Proximity Detection"
-        Height="600" Width="800"
+        Height="600" Width="900"
         WindowStartupLocation="CenterScreen"
         StateChanged="Window_StateChanged"
         Closing="Window_Closing">
@@ -47,6 +48,7 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0">
@@ -66,6 +68,14 @@
                         <Run Text=" dBm"/>
                     </TextBlock>
                 </StackPanel>
+
+                <StackPanel Grid.Column="3">
+                    <TextBlock Text="Distance" FontWeight="SemiBold" Foreground="#7F8C8D" FontSize="11"/>
+                    <TextBlock FontSize="14" Margin="0,3,0,0">
+                        <Run Text="{Binding DistanceMeters, StringFormat='{}{0:F1}'}"/>
+                        <Run Text=" m"/>
+                    </TextBlock>
+                </StackPanel>
             </Grid>
         </Border>
 
@@ -81,6 +91,7 @@
 
                     <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
                         <Button Content="Discover Devices" Command="{Binding DiscoverDevicesCommand}" Padding="10,5" Margin="0,0,10,0"/>
+                        <Button Content="Calibrate" Click="Calibrate_Click" Padding="10,5" Margin="0,0,10,0"/>
                         <Button Content="Save" Command="{Binding SaveSettingsCommand}" Padding="10,5"/>
                     </StackPanel>
 
@@ -152,6 +163,20 @@
                         <Button Content="Save Settings" Command="{Binding SaveSettingsCommand}" HorizontalAlignment="Left" Padding="15,8" Margin="0,15,0,0"/>
                     </StackPanel>
                 </ScrollViewer>
+            </TabItem>
+
+            <!-- Signal Graph Tab -->
+            <TabItem Header="Signal Graph">
+                <Grid Margin="10">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+                        <Button Content="Clear" Command="{Binding SignalGraph.ClearCommand}" Padding="10,5"/>
+                    </StackPanel>
+                    <oxy:PlotView Grid.Row="1" Model="{Binding SignalGraph.PlotModel}"/>
+                </Grid>
             </TabItem>
 
             <!-- Log Tab -->

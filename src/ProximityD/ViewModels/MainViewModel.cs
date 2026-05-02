@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using ProximityD.Configuration;
+using ProximityD.Filters;
 using ProximityD.Models;
 using ProximityD.Services;
 
@@ -17,6 +18,7 @@ public partial class MainViewModel : ObservableObject
     private readonly ProximityEngine _proximityEngine;
     private readonly ProximityBackgroundService _backgroundService;
     private readonly Dispatcher _dispatcher;
+    private readonly PathLossDistanceEstimator _distanceEstimator;
 
     [ObservableProperty]
     private string _statusText = "Initializing...";
@@ -32,6 +34,9 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private double _smoothedRssi;
+
+    [ObservableProperty]
+    private double _distanceMeters;
 
     [ObservableProperty]
     private bool _autoLockEnabled;
@@ -56,12 +61,18 @@ public partial class MainViewModel : ObservableObject
     public ObservableCollection<DeviceViewModel> TrackedDevices { get; } = new();
     public ObservableCollection<string> EventLog { get; } = new();
 
+    public SignalGraphViewModel SignalGraph { get; }
+    public CalibrationWizardViewModel CalibrationWizard { get; }
+
     public MainViewModel(
         ILogger<MainViewModel> logger,
         AppSettings settings,
         BleScanner bleScanner,
         ProximityEngine proximityEngine,
-        ProximityBackgroundService backgroundService)
+        ProximityBackgroundService backgroundService,
+        PathLossDistanceEstimator distanceEstimator,
+        SignalGraphViewModel signalGraphViewModel,
+        CalibrationWizardViewModel calibrationWizardViewModel)
     {
         _logger = logger;
         _settings = settings;
@@ -69,6 +80,9 @@ public partial class MainViewModel : ObservableObject
         _proximityEngine = proximityEngine;
         _backgroundService = backgroundService;
         _dispatcher = Dispatcher.CurrentDispatcher;
+        _distanceEstimator = distanceEstimator;
+        SignalGraph = signalGraphViewModel;
+        CalibrationWizard = calibrationWizardViewModel;
 
         // Initialize from settings
         AutoLockEnabled = settings.EnableAutoLock;
@@ -150,6 +164,13 @@ public partial class MainViewModel : ObservableObject
         SaveSettings();
     }
 
+    [RelayCommand]
+    private void ShowCalibrationWizard()
+    {
+        // Handled by the view layer
+        AddLogEntry("Opening calibration wizard...");
+    }
+
     private void OnProximityStateChanged(object? sender, ProximityEvent evt)
     {
         _dispatcher.Invoke(() =>
@@ -157,6 +178,9 @@ public partial class MainViewModel : ObservableObject
             ProximityStateText = evt.State.ToString();
             CurrentRssi = evt.Rssi;
             SmoothedRssi = evt.SmoothedRssi;
+            DistanceMeters = _distanceEstimator.EstimateDistance(evt.SmoothedRssi);
+            SignalGraph.AddDataPoint(evt.Timestamp, evt.Rssi, evt.SmoothedRssi);
+            CalibrationWizard.OnRssiReading(evt.SmoothedRssi);
             AddLogEntry($"[{evt.Timestamp:HH:mm:ss}] {evt.DeviceName}: {evt.State} (RSSI: {evt.Rssi}, Smoothed: {evt.SmoothedRssi:F1})");
 
             // Update device in list
@@ -210,3 +234,4 @@ public partial class DeviceViewModel : ObservableObject
     [ObservableProperty]
     private double _lastRssi;
 }
+

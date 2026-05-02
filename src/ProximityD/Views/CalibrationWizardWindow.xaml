@@ -1,0 +1,59 @@
+<Window x:Class="ProximityD.Views.CalibrationWizardWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Calibration Wizard"
+        Height="500" Width="600"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize">
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Step indicator -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,20">
+            <TextBlock Text="ProximityD Calibration Wizard" FontSize="20" FontWeight="Bold" Foreground="#2C3E50"/>
+            <TextBlock Text="{Binding InstructionText}" TextWrapping="Wrap" Foreground="#555" Margin="0,8,0,0"/>
+        </StackPanel>
+
+        <!-- Content area -->
+        <Border Grid.Row="1" BorderBrush="#DEE2E6" BorderThickness="1" CornerRadius="8" Padding="15">
+            <StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                    <TextBlock Text="Current RSSI: " FontWeight="SemiBold"/>
+                    <TextBlock Text="{Binding CurrentRssi, StringFormat='{}{0:F1} dBm'}"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                    <TextBlock Text="Samples collected: " FontWeight="SemiBold"/>
+                    <TextBlock Text="{Binding SampleCount}"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,15,0,0">
+                    <Button Content="Start Collecting" Command="{Binding StartCollectingCommand}" Padding="10,5" Margin="0,0,10,0"/>
+                    <Button Content="Stop Collecting" Command="{Binding StopCollectingCommand}" Padding="10,5"/>
+                </StackPanel>
+                <StackPanel Margin="0,20,0,0">
+                    <TextBlock Text="Recommended Thresholds:" FontWeight="SemiBold" Margin="0,0,0,5"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,3">
+                        <TextBlock Text="Lock threshold: " Width="150"/>
+                        <TextBlock Text="{Binding RecommendedLockThreshold, StringFormat='{}{0:F0} dBm'}"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,3">
+                        <TextBlock Text="Unlock threshold: " Width="150"/>
+                        <TextBlock Text="{Binding RecommendedUnlockThreshold, StringFormat='{}{0:F0} dBm'}"/>
+                    </StackPanel>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- Navigation buttons -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
+            <Button Content="Cancel" Command="{Binding CancelCommand}" Padding="15,8" Margin="0,0,10,0"/>
+            <Button Content="Previous" Command="{Binding PreviousStepCommand}" Padding="15,8" Margin="0,0,10,0"/>
+            <Button Content="Next" Command="{Binding NextStepCommand}" Padding="15,8" Margin="0,0,10,0"/>
+            <Button Content="Apply Thresholds" Command="{Binding ApplyThresholdsCommand}" Padding="15,8"/>
+        </StackPanel>
+    </Grid>
+</Window>

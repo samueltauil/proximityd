@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using ProximityD.Configuration;
+using ProximityD.Filters;
 using ProximityD.Services;
 using ProximityD.ViewModels;
 using ProximityD.Views;
@@ -54,7 +55,16 @@ public partial class App : Application
                 services.AddSingleton(settings);
                 services.AddSingleton<BleScanner>();
                 services.AddSingleton<ProximityEngine>();
+                services.AddSingleton<NotificationService>();
                 services.AddSingleton<WindowsActionService>();
+                services.AddSingleton<WifiPresenceService>();
+                services.AddSingleton<UwbPresenceService>();
+                services.AddSingleton<PathLossDistanceEstimator>(sp => {
+                    var s = sp.GetRequiredService<AppSettings>();
+                    return new PathLossDistanceEstimator(s.TxPowerDbm, s.PathLossExponent);
+                });
+                services.AddSingleton<SignalGraphViewModel>();
+                services.AddSingleton<CalibrationWizardViewModel>();
                 services.AddSingleton<ProximityBackgroundService>();
                 services.AddSingleton<MainViewModel>();
                 services.AddSingleton<MainWindow>();
@@ -63,6 +73,10 @@ public partial class App : Application
             .Build();
 
         await _host.StartAsync();
+
+        // Wire up notification events
+        var notificationService = _host.Services.GetRequiredService<NotificationService>();
+        notificationService.NotificationRequested += OnNotificationRequested;
 
         // Create main window
         _mainWindow = _host.Services.GetRequiredService<MainWindow>();
@@ -75,6 +89,16 @@ public partial class App : Application
         {
             _mainWindow.Show();
         }
+    }
+
+    private void OnNotificationRequested(object? sender, NotificationRequest e)
+    {
+        _trayIcon?.ShowBalloonTip(e.Title, e.Message, e.Type switch
+        {
+            NotificationType.Warning => BalloonIcon.Warning,
+            NotificationType.Error => BalloonIcon.Error,
+            _ => BalloonIcon.Info
+        });
     }
 
     private void SetupTrayIcon()
@@ -132,3 +156,4 @@ public partial class App : Application
         base.OnExit(e);
     }
 }
+
