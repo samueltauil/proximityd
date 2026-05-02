@@ -61,7 +61,8 @@ public partial class App : Application
                 services.AddSingleton<WindowsActionService>();
                 services.AddSingleton<WifiPresenceService>();
                 services.AddSingleton<UwbPresenceService>();
-                services.AddSingleton<PathLossDistanceEstimator>(sp => {
+                services.AddSingleton<PathLossDistanceEstimator>(sp =>
+                {
                     var s = sp.GetRequiredService<AppSettings>();
                     return new PathLossDistanceEstimator(s.TxPowerDbm, s.PathLossExponent);
                 });
