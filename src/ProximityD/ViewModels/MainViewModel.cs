@@ -181,8 +181,9 @@ public partial class MainViewModel : ObservableObject
             if (_settings.EnableDistanceMode)
                 DistanceMeters = _distanceEstimator.EstimateDistance(evt.SmoothedRssi);
             SignalGraph.AddDataPoint(evt.Timestamp, evt.Rssi, evt.SmoothedRssi);
-            // Only feed readings for the selected calibration device to avoid mixing signals
-            if (string.IsNullOrEmpty(CalibrationWizard.SelectedDeviceId) ||
+            // Only feed readings for the selected calibration device to avoid mixing signals.
+            // Require an explicit device selection; ignore readings when none is chosen.
+            if (!string.IsNullOrEmpty(CalibrationWizard.SelectedDeviceId) &&
                 CalibrationWizard.SelectedDeviceId == evt.DeviceId)
             {
                 CalibrationWizard.OnRssiReading(evt.SmoothedRssi);

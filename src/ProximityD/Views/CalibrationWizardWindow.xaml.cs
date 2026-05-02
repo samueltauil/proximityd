@@ -5,7 +5,7 @@ namespace ProximityD.Views;
 
 public partial class CalibrationWizardWindow : Window
 {
-    private readonly EventHandler? _wizardClosedHandler;
+    private readonly EventHandler _wizardClosedHandler;
 
     public CalibrationWizardWindow(CalibrationWizardViewModel viewModel)
     {
