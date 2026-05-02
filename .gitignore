@@ -1,0 +1,39 @@
+# Build outputs
+bin/
+obj/
+publish/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.sln.docstates
+
+# NuGet
+packages/
+*.nupkg
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# OS generated
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# Logs
+logs/
+*.log

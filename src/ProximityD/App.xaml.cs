@@ -1,0 +1,120 @@
+using System.Drawing;
+using System.Windows;
+using Hardcodet.Wpf.TaskbarNotification;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using ProximityD.Configuration;
+using ProximityD.Services;
+using ProximityD.ViewModels;
+using ProximityD.Views;
+using Serilog;
+
+namespace ProximityD;
+
+public partial class App : Application
+{
+    private IHost? _host;
+    private TaskbarIcon? _trayIcon;
+    private MainWindow? _mainWindow;
+
+    protected override async void OnStartup(StartupEventArgs e)
+    {
+        base.OnStartup(e);
+
+        var settings = AppSettings.Load();
+
+        // Configure Serilog
+        Log.Logger = new LoggerConfiguration()
+            .MinimumLevel.Information()
+            .WriteTo.File(
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "ProximityD", "logs", "proximityd-.log"),
+                rollingInterval: RollingInterval.Day,
+                retainedFileCountLimit: 7)
+            .CreateLogger();
+
+        // Build host with DI
+        _host = Host.CreateDefaultBuilder()
+            .UseSerilog()
+            .ConfigureServices(services =>
+            {
+                services.AddSingleton(settings);
+                services.AddSingleton<BleScanner>();
+                services.AddSingleton<ProximityEngine>();
+                services.AddSingleton<WindowsActionService>();
+                services.AddSingleton<ProximityBackgroundService>();
+                services.AddSingleton<MainViewModel>();
+                services.AddSingleton<MainWindow>();
+                services.AddHostedService(sp => sp.GetRequiredService<ProximityBackgroundService>());
+            })
+            .Build();
+
+        await _host.StartAsync();
+
+        // Create main window
+        _mainWindow = _host.Services.GetRequiredService<MainWindow>();
+
+        // Setup system tray
+        SetupTrayIcon();
+
+        // Show or minimize based on settings
+        if (!settings.StartMinimized)
+        {
+            _mainWindow.Show();
+        }
+    }
+
+    private void SetupTrayIcon()
+    {
+        _trayIcon = new TaskbarIcon
+        {
+            ToolTipText = "ProximityD - Bluetooth Proximity Detection",
+            MenuActivation = PopupActivationMode.RightClick
+        };
+
+        // Create context menu
+        var contextMenu = new System.Windows.Controls.ContextMenu();
+
+        var showItem = new System.Windows.Controls.MenuItem { Header = "Show" };
+        showItem.Click += (_, _) => _mainWindow?.ShowFromTray();
+        contextMenu.Items.Add(showItem);
+
+        contextMenu.Items.Add(new System.Windows.Controls.Separator());
+
+        var exitItem = new System.Windows.Controls.MenuItem { Header = "Exit" };
+        exitItem.Click += (_, _) => ExitApplication();
+        contextMenu.Items.Add(exitItem);
+
+        _trayIcon.ContextMenu = contextMenu;
+        _trayIcon.TrayMouseDoubleClick += (_, _) => _mainWindow?.ShowFromTray();
+    }
+
+    private async void ExitApplication()
+    {
+        _trayIcon?.Dispose();
+
+        if (_host != null)
+        {
+            await _host.StopAsync();
+            _host.Dispose();
+        }
+
+        Log.CloseAndFlush();
+        Shutdown();
+    }
+
+    protected override async void OnExit(ExitEventArgs e)
+    {
+        _trayIcon?.Dispose();
+
+        if (_host != null)
+        {
+            await _host.StopAsync();
+            _host.Dispose();
+        }
+
+        Log.CloseAndFlush();
+        base.OnExit(e);
+    }
+}
