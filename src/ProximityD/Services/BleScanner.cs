@@ -95,14 +95,17 @@ public class BleScanner : IDisposable
 #endif
 
         _scanCts?.Cancel();
+        _scanCts?.Dispose();
+        _scanCts = null;
         _isScanning = false;
         _logger.LogInformation("BLE scanning stopped");
     }
 
     /// <summary>
     /// Discover available BLE devices for pairing/tracking.
+    /// Uses the Bluetooth address as the device identifier for consistency with advertisement tracking.
     /// </summary>
-    public async Task<List<DiscoveredDevice>> DiscoverDevicesAsync(TimeSpan timeout)
+    public async Task<List<DiscoveredDevice>> DiscoverDevicesAsync(CancellationToken cancellationToken = default)
     {
         var devices = new List<DiscoveredDevice>();
 
@@ -112,10 +115,28 @@ public class BleScanner : IDisposable
 
         foreach (var device in pairedDevices)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            // Resolve BluetoothAddress for consistent identification with advertisement watcher
+            string bluetoothAddress = string.Empty;
+            try
+            {
+                using var bleDevice = await BluetoothLEDevice.FromIdAsync(device.Id);
+                if (bleDevice != null)
+                {
+                    bluetoothAddress = bleDevice.BluetoothAddress.ToString("X12");
+                }
+            }
+            catch
+            {
+                // If we can't resolve the address, use the device ID as fallback
+                bluetoothAddress = device.Id;
+            }
+
             devices.Add(new DiscoveredDevice
             {
-                DeviceId = device.Id,
-                DeviceName = device.Name ?? "Unknown",
+                DeviceId = bluetoothAddress,
+                DeviceName = string.IsNullOrWhiteSpace(device.Name) ? "Unknown" : device.Name,
                 IsPaired = true
             });
         }
@@ -123,9 +144,9 @@ public class BleScanner : IDisposable
         _logger.LogInformation("Found {Count} paired BLE devices", devices.Count);
 #else
         // Simulated devices for testing
-        await Task.Delay(1000);
-        devices.Add(new DiscoveredDevice { DeviceId = "sim-001", DeviceName = "Simulated Phone", IsPaired = true });
-        devices.Add(new DiscoveredDevice { DeviceId = "sim-002", DeviceName = "Simulated Watch", IsPaired = true });
+        await Task.Delay(1000, cancellationToken);
+        devices.Add(new DiscoveredDevice { DeviceId = "AABBCCDDEEFF", DeviceName = "Simulated Phone", IsPaired = true });
+        devices.Add(new DiscoveredDevice { DeviceId = "112233445566", DeviceName = "Simulated Watch", IsPaired = true });
 #endif
 
         return devices;
@@ -138,21 +159,21 @@ public class BleScanner : IDisposable
         var rssi = args.RawSignalStrengthInDBm;
         var localName = args.Advertisement.LocalName;
 
-        // Check if this is a tracked device
-        var isTracked = _settings.TrackedDevices.Any(d =>
+        // Check if this is a tracked device (match on Bluetooth address)
+        var trackedDevice = _settings.TrackedDevices.FirstOrDefault(d =>
             d.Enabled && (d.DeviceId == deviceId || d.MacAddress == deviceId));
 
-        if (isTracked)
+        if (trackedDevice != null)
         {
             DeviceDetected?.Invoke(this, new BleDeviceReading
             {
                 DeviceId = deviceId,
-                DeviceName = localName ?? deviceId,
+                DeviceName = !string.IsNullOrWhiteSpace(localName) ? localName : trackedDevice.DeviceName,
                 Rssi = rssi,
                 Timestamp = DateTime.UtcNow
             });
         }
-        else if (!string.IsNullOrEmpty(localName))
+        else if (!string.IsNullOrWhiteSpace(localName))
         {
             DeviceDiscovered?.Invoke(this, new DiscoveredDevice
             {
@@ -197,7 +218,14 @@ public class BleScanner : IDisposable
                     });
                 }
 
-                await Task.Delay(_settings.ScanIntervalMs, ct);
+                try
+                {
+                    await Task.Delay(_settings.ScanIntervalMs, ct);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
             }
         }, ct);
     }
@@ -205,7 +233,6 @@ public class BleScanner : IDisposable
     public void Dispose()
     {
         StopScanning();
-        _scanCts?.Dispose();
     }
 }
 

@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using ProximityD.Configuration;
 using ProximityD.Filters;
@@ -8,12 +9,13 @@ namespace ProximityD.Services;
 /// <summary>
 /// Core proximity detection engine.
 /// Processes raw RSSI signals through filters and determines proximity state using hysteresis.
+/// Thread-safe: can be called from BLE callbacks and background service loop concurrently.
 /// </summary>
 public class ProximityEngine : IDisposable
 {
     private readonly ILogger<ProximityEngine> _logger;
     private readonly AppSettings _settings;
-    private readonly Dictionary<string, DeviceState> _deviceStates = new();
+    private readonly ConcurrentDictionary<string, DeviceState> _deviceStates = new();
 
     public event EventHandler<ProximityEvent>? ProximityChanged;
 
@@ -28,41 +30,42 @@ public class ProximityEngine : IDisposable
     /// </summary>
     public ProximityState ProcessReading(string deviceId, string deviceName, short rssi)
     {
-        if (!_deviceStates.TryGetValue(deviceId, out var state))
+        var state = _deviceStates.GetOrAdd(deviceId, id => CreateDeviceState(id));
+
+        lock (state)
         {
-            state = CreateDeviceState(deviceId);
-            _deviceStates[deviceId] = state;
-        }
+            // Update signal filter
+            var smoothedRssi = state.Filter.Update(rssi);
+            state.LastRssi = rssi;
+            state.SmoothedRssi = smoothedRssi;
+            state.LastSeen = DateTime.UtcNow;
+            state.LastKnownName = deviceName;
 
-        // Update signal filter
-        var smoothedRssi = state.Filter.Update(rssi);
-        state.LastRssi = rssi;
-        state.SmoothedRssi = smoothedRssi;
-        state.LastSeen = DateTime.UtcNow;
+            // Determine proximity state with hysteresis
+            var newState = DetermineState(state, smoothedRssi);
 
-        // Determine proximity state with hysteresis
-        var newState = DetermineState(state, smoothedRssi);
-
-        if (newState != state.CurrentState)
-        {
-            var previousState = state.CurrentState;
-            state.CurrentState = newState;
-
-            _logger.LogInformation(
-                "Device {DeviceName} ({DeviceId}) state changed: {OldState} -> {NewState} (RSSI: {Rssi}, Smoothed: {Smoothed:F1})",
-                deviceName, deviceId, previousState, newState, rssi, smoothedRssi);
-
-            ProximityChanged?.Invoke(this, new ProximityEvent
+            if (newState != state.CurrentState)
             {
-                DeviceId = deviceId,
-                DeviceName = deviceName,
-                State = newState,
-                Rssi = rssi,
-                SmoothedRssi = smoothedRssi
-            });
-        }
+                var previousState = state.CurrentState;
+                state.CurrentState = newState;
 
-        return newState;
+                _logger.LogInformation(
+                    "Device {DeviceName} ({DeviceId}) state changed: {OldState} -> {NewState} (RSSI: {Rssi}, Smoothed: {Smoothed:F1})",
+                    deviceName, deviceId, previousState, newState, rssi, smoothedRssi);
+
+                ProximityChanged?.Invoke(this, new ProximityEvent
+                {
+                    DeviceId = deviceId,
+                    DeviceName = deviceName,
+                    State = newState,
+                    Rssi = rssi,
+                    SmoothedRssi = smoothedRssi,
+                    Timestamp = DateTime.UtcNow
+                });
+            }
+
+            return newState;
+        }
     }
 
     /// <summary>
@@ -73,21 +76,27 @@ public class ProximityEngine : IDisposable
         var lostTimeout = TimeSpan.FromSeconds(_settings.DeviceLostTimeoutSeconds);
         var now = DateTime.UtcNow;
 
-        foreach (var (deviceId, state) in _deviceStates)
+        foreach (var (deviceId, state) in _deviceStates.ToArray())
         {
-            if (state.CurrentState != ProximityState.Lost &&
-                now - state.LastSeen > lostTimeout)
+            lock (state)
             {
-                state.CurrentState = ProximityState.Lost;
-                _logger.LogWarning("Device {DeviceId} lost - no signal for {Timeout}s", deviceId, _settings.DeviceLostTimeoutSeconds);
-
-                ProximityChanged?.Invoke(this, new ProximityEvent
+                if (state.CurrentState != ProximityState.Lost &&
+                    now - state.LastSeen > lostTimeout)
                 {
-                    DeviceId = deviceId,
-                    State = ProximityState.Lost,
-                    Rssi = state.LastRssi,
-                    SmoothedRssi = state.SmoothedRssi
-                });
+                    state.CurrentState = ProximityState.Lost;
+                    _logger.LogWarning("Device {DeviceName} ({DeviceId}) lost - no signal for {Timeout}s",
+                        state.LastKnownName, deviceId, _settings.DeviceLostTimeoutSeconds);
+
+                    ProximityChanged?.Invoke(this, new ProximityEvent
+                    {
+                        DeviceId = deviceId,
+                        DeviceName = state.LastKnownName,
+                        State = ProximityState.Lost,
+                        Rssi = state.LastRssi,
+                        SmoothedRssi = state.SmoothedRssi,
+                        Timestamp = DateTime.UtcNow
+                    });
+                }
             }
         }
     }
@@ -107,7 +116,7 @@ public class ProximityEngine : IDisposable
     /// </summary>
     public IReadOnlyDictionary<string, (ProximityState State, double SmoothedRssi, short LastRssi, DateTime LastSeen)> GetAllStates()
     {
-        return _deviceStates.ToDictionary(
+        return _deviceStates.ToArray().ToDictionary(
             kvp => kvp.Key,
             kvp => (kvp.Value.CurrentState, kvp.Value.SmoothedRssi, kvp.Value.LastRssi, kvp.Value.LastSeen));
     }
@@ -188,6 +197,7 @@ public class ProximityEngine : IDisposable
     private class DeviceState
     {
         public string DeviceId { get; set; } = string.Empty;
+        public string LastKnownName { get; set; } = string.Empty;
         public ISignalFilter Filter { get; set; } = new PassthroughFilter();
         public ProximityState CurrentState { get; set; } = ProximityState.Lost;
         public short LastRssi { get; set; }

@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>ProximityD.Tests</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.9.0" />
+    <PackageReference Include="xunit" Version="2.7.0" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.7" />
+    <PackageReference Include="Moq" Version="4.20.70" />
+    <PackageReference Include="FluentAssertions" Version="6.12.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+  </ItemGroup>
+
+  <!-- Include core source files directly for cross-platform testing -->
+  <ItemGroup>
+    <Compile Include="..\..\src\ProximityD\Filters\KalmanFilter.cs" Link="Source\KalmanFilter.cs" />
+    <Compile Include="..\..\src\ProximityD\Filters\MovingAverageFilter.cs" Link="Source\MovingAverageFilter.cs" />
+    <Compile Include="..\..\src\ProximityD\Models\ProximityEvent.cs" Link="Source\ProximityEvent.cs" />
+    <Compile Include="..\..\src\ProximityD\Models\TrackedDevice.cs" Link="Source\TrackedDevice.cs" />
+    <Compile Include="..\..\src\ProximityD\Configuration\AppSettings.cs" Link="Source\AppSettings.cs" />
+    <Compile Include="..\..\src\ProximityD\Services\ProximityEngine.cs" Link="Source\ProximityEngine.cs" />
+    <Compile Include="..\..\src\ProximityD\Services\WindowsActionService.cs" Link="Source\WindowsActionService.cs" />
+  </ItemGroup>
+
+</Project>

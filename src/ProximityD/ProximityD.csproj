@@ -12,7 +12,6 @@
     <Version>1.0.0</Version>
     <Authors>Samuel Tauil</Authors>
     <Description>Modern Windows Bluetooth proximity detection - lock/unlock your PC based on device presence</Description>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>false</SelfContained>
   </PropertyGroup>
 

@@ -9,6 +9,7 @@ using ProximityD.Services;
 using ProximityD.ViewModels;
 using ProximityD.Views;
 using Serilog;
+using Serilog.Events;
 
 namespace ProximityD;
 
@@ -24,9 +25,20 @@ public partial class App : Application
 
         var settings = AppSettings.Load();
 
+        // Map settings LogLevel to Serilog level
+        var logLevel = settings.LogLevel?.ToLowerInvariant() switch
+        {
+            "verbose" or "trace" => LogEventLevel.Verbose,
+            "debug" => LogEventLevel.Debug,
+            "warning" => LogEventLevel.Warning,
+            "error" => LogEventLevel.Error,
+            "fatal" => LogEventLevel.Fatal,
+            _ => LogEventLevel.Information
+        };
+
         // Configure Serilog
         Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Information()
+            .MinimumLevel.Is(logLevel)
             .WriteTo.File(
                 Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                     "ProximityD", "logs", "proximityd-.log"),
@@ -69,6 +81,7 @@ public partial class App : Application
     {
         _trayIcon = new TaskbarIcon
         {
+            Icon = SystemIcons.Application,
             ToolTipText = "ProximityD - Bluetooth Proximity Detection",
             MenuActivation = PopupActivationMode.RightClick
         };
@@ -92,6 +105,7 @@ public partial class App : Application
 
     private async void ExitApplication()
     {
+        _mainWindow?.AllowClose();
         _trayIcon?.Dispose();
 
         if (_host != null)

@@ -90,6 +90,7 @@ public partial class MainViewModel : ObservableObject
             {
                 DeviceId = device.DeviceId,
                 DeviceName = device.DeviceName,
+                MacAddress = device.MacAddress,
                 IsEnabled = device.Enabled
             });
         }
@@ -99,7 +100,7 @@ public partial class MainViewModel : ObservableObject
     private async Task DiscoverDevicesAsync()
     {
         StatusText = "Discovering devices...";
-        var devices = await _bleScanner.DiscoverDevicesAsync(TimeSpan.FromSeconds(10));
+        var devices = await _bleScanner.DiscoverDevicesAsync();
 
         _dispatcher.Invoke(() =>
         {
@@ -134,6 +135,7 @@ public partial class MainViewModel : ObservableObject
             {
                 DeviceId = d.DeviceId,
                 DeviceName = d.DeviceName,
+                MacAddress = d.MacAddress,
                 Enabled = d.IsEnabled
             }).ToList();
 
@@ -195,6 +197,9 @@ public partial class DeviceViewModel : ObservableObject
 
     [ObservableProperty]
     private string _deviceName = string.Empty;
+
+    [ObservableProperty]
+    private string _macAddress = string.Empty;
 
     [ObservableProperty]
     private bool _isEnabled;
