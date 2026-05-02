@@ -106,7 +106,9 @@ public class WindowsActionService
         ActionPerformed?.Invoke(this, "Device detected - ready to unlock via Windows Hello");
 
         if (_settings.EnableWindowsHelloNotification)
+        {
             ShowWindowsHelloNotification();
+        }
 
         return true;
     }

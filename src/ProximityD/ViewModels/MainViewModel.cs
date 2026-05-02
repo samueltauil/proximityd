@@ -179,7 +179,9 @@ public partial class MainViewModel : ObservableObject
             CurrentRssi = evt.Rssi;
             SmoothedRssi = evt.SmoothedRssi;
             if (_settings.EnableDistanceMode)
+            {
                 DistanceMeters = _distanceEstimator.EstimateDistance(evt.SmoothedRssi);
+            }
             SignalGraph.AddDataPoint(evt.Timestamp, evt.Rssi, evt.SmoothedRssi);
             // Only feed readings for the selected calibration device to avoid mixing signals.
             // Require an explicit device selection; ignore readings when none is chosen.
@@ -217,7 +219,10 @@ public partial class MainViewModel : ObservableObject
     private void AddLogEntry(string message)
     {
         EventLog.Insert(0, message);
-        if (EventLog.Count > MaxEventLogEntries) EventLog.RemoveAt(EventLog.Count - 1);
+        if (EventLog.Count > MaxEventLogEntries)
+        {
+            EventLog.RemoveAt(EventLog.Count - 1);
+        }
     }
 }
 

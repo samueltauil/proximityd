@@ -17,7 +17,9 @@ public class PathLossDistanceEstimator
     public PathLossDistanceEstimator(double txPowerDbm = -59.0, double pathLossExponent = 2.0)
     {
         if (pathLossExponent <= 0)
+        {
             throw new ArgumentOutOfRangeException(nameof(pathLossExponent), "Path loss exponent must be positive.");
+        }
 
         _txPowerDbm = txPowerDbm;
         _pathLossExponent = pathLossExponent;
@@ -48,7 +50,9 @@ public class PathLossDistanceEstimator
     public double EstimateRssi(double distanceMeters)
     {
         if (distanceMeters <= 0)
+        {
             throw new ArgumentOutOfRangeException(nameof(distanceMeters), "Distance must be positive.");
+        }
 
         return _txPowerDbm - 10.0 * _pathLossExponent * Math.Log10(distanceMeters);
     }

@@ -97,9 +97,13 @@ public partial class CalibrationWizardViewModel : ObservableObject
     public void StartCollecting()
     {
         if (CurrentStep == WizardStep.NearCalibration)
+        {
             _nearSamples.Clear();
+        }
         else if (CurrentStep == WizardStep.AwayCalibration)
+        {
             _awaySamples.Clear();
+        }
 
         SampleCount = 0;
         IsCollectingSamples = true;
@@ -119,7 +123,10 @@ public partial class CalibrationWizardViewModel : ObservableObject
     public void ApplyThresholds()
     {
         // Guard: never apply zero thresholds that result from an uncompleted calibration run.
-        if (!HasCalibrationData) return;
+        if (!HasCalibrationData)
+        {
+            return;
+        }
 
         ThresholdsApplied?.Invoke(this, new ThresholdRecommendation
         {
@@ -144,7 +151,10 @@ public partial class CalibrationWizardViewModel : ObservableObject
     {
         CurrentRssi = rssi;
 
-        if (!IsCollectingSamples) return;
+        if (!IsCollectingSamples)
+        {
+            return;
+        }
 
         if (CurrentStep == WizardStep.NearCalibration)
         {
@@ -166,7 +176,10 @@ public partial class CalibrationWizardViewModel : ObservableObject
 
     private void CalculateRecommendations()
     {
-        if (_nearSamples.Count == 0 || _awaySamples.Count == 0) return;
+        if (_nearSamples.Count == 0 || _awaySamples.Count == 0)
+        {
+            return;
+        }
 
         var nearMean = _nearSamples.Average();
         var awayMean = _awaySamples.Average();

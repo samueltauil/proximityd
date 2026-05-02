@@ -57,7 +57,9 @@ public class MovingAverageFilterTests
         var filter = new MovingAverageFilter(windowSize: 3);
 
         for (int i = 0; i < 10; i++)
+        {
             filter.Update(-60.0 - i);
+        }
 
         filter.SampleCount.Should().Be(3);
     }

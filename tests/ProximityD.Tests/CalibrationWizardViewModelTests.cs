@@ -148,13 +148,21 @@ public class CalibrationWizardViewModelTests
         // Collect near samples
         vm.NextStep(); vm.NextStep(); // NearCalibration
         vm.StartCollecting();
-        for (var i = 0; i < 5; i++) vm.OnRssiReading(-65.0);
+        for (var i = 0; i < 5; i++)
+        {
+            vm.OnRssiReading(-65.0);
+        }
+
         vm.StopCollecting();
 
         // Collect away samples
         vm.NextStep(); // AwayCalibration
         vm.StartCollecting();
-        for (var i = 0; i < 5; i++) vm.OnRssiReading(-85.0);
+        for (var i = 0; i < 5; i++)
+        {
+            vm.OnRssiReading(-85.0);
+        }
+
         vm.StopCollecting();
 
         vm.RecommendedUnlockThreshold.Should().NotBe(0);
@@ -181,11 +189,19 @@ public class CalibrationWizardViewModelTests
         // Run a complete calibration before applying
         vm.NextStep(); vm.NextStep(); // NearCalibration
         vm.StartCollecting();
-        for (var i = 0; i < 5; i++) vm.OnRssiReading(-65.0);
+        for (var i = 0; i < 5; i++)
+        {
+            vm.OnRssiReading(-65.0);
+        }
+
         vm.StopCollecting();
         vm.NextStep(); // AwayCalibration
         vm.StartCollecting();
-        for (var i = 0; i < 5; i++) vm.OnRssiReading(-85.0);
+        for (var i = 0; i < 5; i++)
+        {
+            vm.OnRssiReading(-85.0);
+        }
+
         vm.StopCollecting();
 
         ThresholdRecommendation? recommendation = null;
@@ -206,11 +222,19 @@ public class CalibrationWizardViewModelTests
         // Run a complete calibration before applying
         vm.NextStep(); vm.NextStep(); // NearCalibration
         vm.StartCollecting();
-        for (var i = 0; i < 5; i++) vm.OnRssiReading(-65.0);
+        for (var i = 0; i < 5; i++)
+        {
+            vm.OnRssiReading(-65.0);
+        }
+
         vm.StopCollecting();
         vm.NextStep(); // AwayCalibration
         vm.StartCollecting();
-        for (var i = 0; i < 5; i++) vm.OnRssiReading(-85.0);
+        for (var i = 0; i < 5; i++)
+        {
+            vm.OnRssiReading(-85.0);
+        }
+
         vm.StopCollecting();
 
         var closed = false;
@@ -247,11 +271,19 @@ public class CalibrationWizardViewModelTests
         var vm = new CalibrationWizardViewModel();
         vm.NextStep(); vm.NextStep(); // NearCalibration
         vm.StartCollecting();
-        for (var i = 0; i < 5; i++) vm.OnRssiReading(-65.0);
+        for (var i = 0; i < 5; i++)
+        {
+            vm.OnRssiReading(-65.0);
+        }
+
         vm.StopCollecting();
         vm.NextStep(); // AwayCalibration
         vm.StartCollecting();
-        for (var i = 0; i < 5; i++) vm.OnRssiReading(-85.0);
+        for (var i = 0; i < 5; i++)
+        {
+            vm.OnRssiReading(-85.0);
+        }
+
         vm.StopCollecting();
 
         vm.HasCalibrationData.Should().BeTrue();
@@ -265,11 +297,19 @@ public class CalibrationWizardViewModelTests
         // Run a complete calibration
         vm.NextStep(); vm.NextStep(); // NearCalibration
         vm.StartCollecting();
-        for (var i = 0; i < 5; i++) vm.OnRssiReading(-65.0);
+        for (var i = 0; i < 5; i++)
+        {
+            vm.OnRssiReading(-65.0);
+        }
+
         vm.StopCollecting();
         vm.NextStep(); // AwayCalibration
         vm.StartCollecting();
-        for (var i = 0; i < 5; i++) vm.OnRssiReading(-85.0);
+        for (var i = 0; i < 5; i++)
+        {
+            vm.OnRssiReading(-85.0);
+        }
+
         vm.StopCollecting();
         vm.SelectedDeviceId = "device-1";
 

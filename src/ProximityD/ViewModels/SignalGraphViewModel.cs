@@ -111,7 +111,9 @@ public partial class SignalGraphViewModel : ObservableObject
             {
                 _rawRssiSeries.Points.RemoveAt(0);
                 if (_smoothedRssiSeries.Points.Count > 0)
+                {
                     _smoothedRssiSeries.Points.RemoveAt(0);
+                }
             }
 
             _plotModel.InvalidatePlot(true);

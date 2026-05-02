@@ -1,4 +1,5 @@
 using System.Drawing;
+using System.IO;
 using System.Windows;
 using Hardcodet.Wpf.TaskbarNotification;
 using Microsoft.Extensions.DependencyInjection;
@@ -96,7 +97,10 @@ public partial class App : Application
 
     private void OnNotificationRequested(object? sender, NotificationRequest e)
     {
-        if (!_settings.ShowNotifications) return;
+        if (!_settings.ShowNotifications)
+        {
+            return;
+        }
 
         // Build a simple custom balloon so the configured NotificationTimeoutSeconds is respected.
         var balloon = new System.Windows.Controls.Border

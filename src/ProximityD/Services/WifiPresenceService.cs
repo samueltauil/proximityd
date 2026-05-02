@@ -95,7 +95,10 @@ public class WifiPresenceService : IDisposable
 
     private void UpdateState(WifiPresenceState newState)
     {
-        if (newState == CurrentState) return;
+        if (newState == CurrentState)
+        {
+            return;
+        }
         CurrentState = newState;
         _logger.LogInformation("WiFi presence state changed to {State}", newState);
         PresenceChanged?.Invoke(this, newState);
@@ -103,7 +106,10 @@ public class WifiPresenceService : IDisposable
 
     public void Dispose()
     {
-        if (_disposed) return;
+        if (_disposed)
+        {
+            return;
+        }
         _disposed = true;
         Stop();
     }
