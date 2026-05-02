@@ -24,6 +24,13 @@ public partial class CalibrationWizardViewModel : ObservableObject
     private readonly List<double> _nearSamples = new();
     private readonly List<double> _awaySamples = new();
 
+    // Safety margin below near mean to set the unlock threshold
+    private const double UnlockSafetyMargin = 10.0;
+    // Small buffer above away mean to set the lock threshold
+    private const double LockTriggerMargin = 5.0;
+    // Half-gap applied when thresholds need to be corrected
+    private const double ThresholdHalfGap = 5.0;
+
     [ObservableProperty]
     private WizardStep _currentStep = WizardStep.Welcome;
 
@@ -157,17 +164,18 @@ public partial class CalibrationWizardViewModel : ObservableObject
         var nearMean = _nearSamples.Average();
         var awayMean = _awaySamples.Average();
 
-        // Unlock threshold: near mean minus safety margin
-        RecommendedUnlockThreshold = nearMean - 10.0;
-        // Lock threshold: away mean plus a small trigger margin
-        RecommendedLockThreshold = awayMean + 5.0;
+        // Unlock threshold: near mean minus safety margin (so device must be close to unlock)
+        RecommendedUnlockThreshold = nearMean - UnlockSafetyMargin;
+        // Lock threshold: away mean plus a small trigger margin (trigger lock before fully away)
+        RecommendedLockThreshold = awayMean + LockTriggerMargin;
 
-        // Sanity: lock should always be more negative than unlock
+        // Sanity check: lock threshold should always be more negative (weaker signal) than unlock.
+        // If near and away samples overlap, split the midpoint evenly.
         if (RecommendedLockThreshold > RecommendedUnlockThreshold)
         {
             var mid = (RecommendedLockThreshold + RecommendedUnlockThreshold) / 2.0;
-            RecommendedLockThreshold = mid - 5.0;
-            RecommendedUnlockThreshold = mid + 5.0;
+            RecommendedLockThreshold = mid - ThresholdHalfGap;
+            RecommendedUnlockThreshold = mid + ThresholdHalfGap;
         }
     }
 
