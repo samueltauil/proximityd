@@ -1,60 +1,78 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
+    <!-- Background gradient — rich deep blue -->
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#1a6dd4"/>
-      <stop offset="100%" stop-color="#071a3e"/>
+      <stop offset="0%" stop-color="#1565c0"/>
+      <stop offset="50%" stop-color="#0d3b82"/>
+      <stop offset="100%" stop-color="#051b3e"/>
     </linearGradient>
-    <linearGradient id="lockGrad" x1="50%" y1="0%" x2="50%" y2="100%">
+    <!-- Subtle glass highlight -->
+    <radialGradient id="glass" cx="35%" cy="25%" r="60%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Lock face gradient -->
+    <linearGradient id="lockFace" x1="50%" y1="0%" x2="50%" y2="100%">
       <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="100%" stop-color="#cfd8dc"/>
+      <stop offset="100%" stop-color="#b0bec5"/>
     </linearGradient>
-    <linearGradient id="shackleGrad" x1="50%" y1="0%" x2="50%" y2="100%">
-      <stop offset="0%" stop-color="#e0e0e0"/>
-      <stop offset="100%" stop-color="#ffffff"/>
+    <!-- Shackle metallic -->
+    <linearGradient id="shackle" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#eceff1"/>
+      <stop offset="50%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#b0bec5"/>
     </linearGradient>
-    <linearGradient id="arcGrad" x1="0%" y1="50%" x2="100%" y2="50%">
-      <stop offset="0%" stop-color="#4fc3f7"/>
-      <stop offset="100%" stop-color="#81d4fa"/>
+    <!-- Arc gradient -->
+    <linearGradient id="arc" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#4dd0e1"/>
+      <stop offset="100%" stop-color="#29b6f6"/>
     </linearGradient>
-    <filter id="lockShadow">
-      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#000000" flood-opacity="0.35"/>
+    <!-- Shadows -->
+    <filter id="dropShadow">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000" flood-opacity="0.4"/>
     </filter>
-    <filter id="arcGlow">
-      <feGaussianBlur stdDeviation="4" result="blur"/>
+    <filter id="softGlow">
+      <feGaussianBlur stdDeviation="6" result="glow"/>
       <feMerge>
-        <feMergeNode in="blur"/>
+        <feMergeNode in="glow"/>
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
   </defs>
 
-  <!-- Background -->
-  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- Canvas background -->
+  <rect width="512" height="512" rx="114" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="114" fill="url(#glass)"/>
 
-  <!-- Lock group — centered and prominent -->
-  <g filter="url(#lockShadow)">
-    <!-- Lock body -->
-    <rect x="136" y="272" width="180" height="148" rx="24" fill="url(#lockGrad)"/>
+  <!-- Lock assembly -->
+  <g filter="url(#dropShadow)">
+    <!-- Shackle — thick, open, communicates "unlocked by proximity" -->
+    <path d="M 176 270 L 176 188 C 176 130 210 98 256 98 C 302 98 336 130 336 188 L 336 222"
+          stroke="url(#shackle)" stroke-width="32" stroke-linecap="round" fill="none"/>
 
-    <!-- Shackle — open on right, suggesting device-detected state -->
-    <path d="M 184 272 L 184 196 C 184 144 214 116 256 116 C 298 116 328 144 328 196 L 328 232"
-          stroke="url(#shackleGrad)" stroke-width="28" stroke-linecap="round" fill="none"/>
+    <!-- Lock body — large, rounded, dominant -->
+    <rect x="144" y="270" width="200" height="160" rx="28" fill="url(#lockFace)"/>
   </g>
 
-  <!-- Bluetooth symbol centered in lock body -->
-  <g transform="translate(226, 300)">
-    <line x1="0" y1="0" x2="0" y2="80" stroke="#0d2554" stroke-width="9" stroke-linecap="round"/>
-    <polyline points="0,10 24,32 0,54" stroke="#0d2554" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-    <polyline points="0,26 -24,48 0,70" stroke="#0d2554" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- Bluetooth rune as keyhole — the clever visual pun -->
+  <g transform="translate(244, 296)" stroke="#0d3b82" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <!-- Vertical axis -->
+    <line x1="0" y1="0" x2="0" y2="88"/>
+    <!-- Top arrow -->
+    <polyline points="-22,22 0,0 22,22"/>
+    <line x1="22" y1="22" x2="-22" y2="66"/>
+    <!-- Bottom arrow -->
+    <polyline points="22,66 0,88 -22,66"/>
+    <line x1="-22" y1="66" x2="22" y2="22"/>
   </g>
 
-  <!-- Proximity arcs — right side, vertically centered on lock -->
-  <g filter="url(#arcGlow)">
-    <path d="M 356 296 C 380 320 380 360 356 384"
-          stroke="url(#arcGrad)" stroke-width="10" stroke-linecap="round" fill="none" opacity="0.9"/>
-    <path d="M 380 272 C 416 308 416 372 380 408"
-          stroke="url(#arcGrad)" stroke-width="8" stroke-linecap="round" fill="none" opacity="0.55"/>
-    <path d="M 404 250 C 450 296 450 384 404 430"
-          stroke="url(#arcGrad)" stroke-width="6" stroke-linecap="round" fill="none" opacity="0.28"/>
+  <!-- Proximity signal arcs — right side, vertically centered -->
+  <g filter="url(#softGlow)">
+    <path d="M 368 300 C 390 324 390 376 368 400"
+          stroke="url(#arc)" stroke-width="11" stroke-linecap="round" fill="none" opacity="0.95"/>
+    <path d="M 394 278 C 428 314 428 386 394 422"
+          stroke="url(#arc)" stroke-width="9" stroke-linecap="round" fill="none" opacity="0.6"/>
+    <path d="M 420 258 C 464 304 464 396 420 442"
+          stroke="url(#arc)" stroke-width="7" stroke-linecap="round" fill="none" opacity="0.3"/>
   </g>
 </svg>

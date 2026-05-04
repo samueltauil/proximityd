@@ -1,13 +1,15 @@
-# ProximityD
-
 <p align="center">
-  <img src="assets/logo.svg" alt="ProximityD Logo" width="128" height="128">
+  <img src="assets/logo.svg" alt="ProximityD" width="160" height="160">
 </p>
 
-[![CI](https://github.com/samueltauil/proximityd/actions/workflows/ci.yml/badge.svg)](https://github.com/samueltauil/proximityd/actions/workflows/ci.yml)
-[![Build](https://github.com/samueltauil/proximityd/actions/workflows/build.yml/badge.svg)](https://github.com/samueltauil/proximityd/actions/workflows/build.yml)
-[![Release](https://github.com/samueltauil/proximityd/actions/workflows/release.yml/badge.svg)](https://github.com/samueltauil/proximityd/actions/workflows/release.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+<h1 align="center">ProximityD</h1>
+
+<p align="center">
+  <a href="https://github.com/samueltauil/proximityd/actions/workflows/ci.yml"><img src="https://github.com/samueltauil/proximityd/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/samueltauil/proximityd/actions/workflows/build.yml"><img src="https://github.com/samueltauil/proximityd/actions/workflows/build.yml/badge.svg" alt="Build"></a>
+  <a href="https://github.com/samueltauil/proximityd/actions/workflows/release.yml"><img src="https://github.com/samueltauil/proximityd/actions/workflows/release.yml/badge.svg" alt="Release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
+</p>
 
 A modern Windows Bluetooth proximity detection application inspired by [BlueProximity](https://blueproximity.sourceforge.net/). Automatically locks your PC when your Bluetooth device (phone, watch, etc.) moves out of range, and optionally signals readiness to unlock when it returns.
 
