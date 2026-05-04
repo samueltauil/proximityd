@@ -54,17 +54,9 @@
     <rect x="144" y="270" width="200" height="160" rx="28" fill="url(#lockFace)"/>
   </g>
 
-  <!-- Bluetooth rune as keyhole — the clever visual pun -->
-  <g transform="translate(244, 296)" stroke="#0d3b82" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none">
-    <!-- Vertical axis -->
-    <line x1="0" y1="0" x2="0" y2="88"/>
-    <!-- Top arrow -->
-    <polyline points="-22,22 0,0 22,22"/>
-    <line x1="22" y1="22" x2="-22" y2="66"/>
-    <!-- Bottom arrow -->
-    <polyline points="22,66 0,88 -22,66"/>
-    <line x1="-22" y1="66" x2="22" y2="22"/>
-  </g>
+  <!-- Keyhole -->
+  <circle cx="244" cy="332" r="18" fill="#0d3b82"/>
+  <path d="M 236 346 L 244 392 L 252 346 Z" fill="#0d3b82"/>
 
   <!-- Proximity signal arcs — right side, vertically centered -->
   <g filter="url(#softGlow)">
