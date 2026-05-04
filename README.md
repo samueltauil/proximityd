@@ -74,23 +74,13 @@ For the full settings reference and calibration guide, see [Configuration](docs/
 - Some BLE devices may not broadcast advertisements when the screen is off
 - UWB support is stubbed — no public Windows UWB scanning API is currently available
 
-## Roadmap
-
-- [x] Calibration wizard UI
-- [x] Signal strength graph visualization
-- [x] WiFi presence detection (hybrid approach)
-- [x] Windows Hello notification on device return
-- [x] Distance estimation via path loss model
-- [ ] UWB (Ultra-Wideband) support — pending public Windows UWB API
-- [ ] Machine learning-based adaptive distance estimation
-- [ ] Custom Windows Credential Provider for true silent auto-unlock
-
 ## Documentation
 
 | Document | Description |
 |----------|-------------|
 | [Architecture](docs/architecture.md) | System design, signal processing, state machine, security |
 | [Configuration](docs/configuration.md) | Full settings reference and calibration guide |
+| [Roadmap](docs/roadmap.md) | Planned and completed features |
 | [Credential Provider](docs/CredentialProvider.md) | Custom Windows Credential Provider for silent auto-unlock |
 | [Contributing](CONTRIBUTING.md) | Development setup, coding standards, PR guidelines |
 | [Changelog](CHANGELOG.md) | Release history |
