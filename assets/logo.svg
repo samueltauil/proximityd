@@ -1,35 +1,34 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
-    <!-- Background gradient — rich deep blue -->
+    <!-- GitHub dark background -->
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#1565c0"/>
-      <stop offset="50%" stop-color="#0d3b82"/>
-      <stop offset="100%" stop-color="#051b3e"/>
+      <stop offset="0%" stop-color="#2d333b"/>
+      <stop offset="100%" stop-color="#0d1117"/>
     </linearGradient>
-    <!-- Subtle glass highlight -->
+    <!-- Glass highlight -->
     <radialGradient id="glass" cx="35%" cy="25%" r="60%">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.1"/>
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.06"/>
       <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
     </radialGradient>
-    <!-- Lock face gradient -->
+    <!-- Lock face -->
     <linearGradient id="lockFace" x1="50%" y1="0%" x2="50%" y2="100%">
-      <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="100%" stop-color="#b0bec5"/>
+      <stop offset="0%" stop-color="#f0f6fc"/>
+      <stop offset="100%" stop-color="#c9d1d9"/>
     </linearGradient>
     <!-- Shackle metallic -->
     <linearGradient id="shackle" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#eceff1"/>
-      <stop offset="50%" stop-color="#ffffff"/>
-      <stop offset="100%" stop-color="#b0bec5"/>
+      <stop offset="0%" stop-color="#c9d1d9"/>
+      <stop offset="50%" stop-color="#f0f6fc"/>
+      <stop offset="100%" stop-color="#8b949e"/>
     </linearGradient>
-    <!-- Arc gradient -->
+    <!-- Arc gradient — GitHub blue/green accent -->
     <linearGradient id="arc" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#4dd0e1"/>
-      <stop offset="100%" stop-color="#29b6f6"/>
+      <stop offset="0%" stop-color="#58a6ff"/>
+      <stop offset="100%" stop-color="#3fb950"/>
     </linearGradient>
     <!-- Shadows -->
     <filter id="dropShadow">
-      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000" flood-opacity="0.4"/>
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#010409" flood-opacity="0.5"/>
     </filter>
     <filter id="softGlow">
       <feGaussianBlur stdDeviation="6" result="glow"/>
@@ -46,19 +45,19 @@
 
   <!-- Lock assembly -->
   <g filter="url(#dropShadow)">
-    <!-- Shackle — thick, open, communicates "unlocked by proximity" -->
+    <!-- Shackle -->
     <path d="M 176 270 L 176 188 C 176 130 210 98 256 98 C 302 98 336 130 336 188 L 336 222"
           stroke="url(#shackle)" stroke-width="32" stroke-linecap="round" fill="none"/>
 
-    <!-- Lock body — large, rounded, dominant -->
+    <!-- Lock body -->
     <rect x="144" y="270" width="200" height="160" rx="28" fill="url(#lockFace)"/>
   </g>
 
   <!-- Keyhole -->
-  <circle cx="244" cy="332" r="18" fill="#0d3b82"/>
-  <path d="M 236 346 L 244 392 L 252 346 Z" fill="#0d3b82"/>
+  <circle cx="244" cy="332" r="18" fill="#0d1117"/>
+  <path d="M 236 346 L 244 392 L 252 346 Z" fill="#0d1117"/>
 
-  <!-- Proximity signal arcs — right side, vertically centered -->
+  <!-- Proximity signal arcs -->
   <g filter="url(#softGlow)">
     <path d="M 368 300 C 390 324 390 376 368 400"
           stroke="url(#arc)" stroke-width="11" stroke-linecap="round" fill="none" opacity="0.95"/>
