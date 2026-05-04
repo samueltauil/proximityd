@@ -10,12 +10,16 @@ A Windows Credential Provider (CP) is a COM DLL that plugs into the Windows logo
 
 ## Architecture
 
-```
-ProximityD.exe ──────────► Named Pipe / IPC ──────────► ProximityD.CredentialProvider.dll
-  (user session)                                          (winlogon session - SYSTEM)
-  
-  Detects BT device                                      Receives "device present" signal
-  Signal via IPC ──────────────────────────────────────► Auto-submit credentials
+```mermaid
+sequenceDiagram
+  participant App as ProximityD.exe<br/>(user session)
+  participant IPC as Named Pipe
+  participant CP as CredentialProvider.dll<br/>(winlogon - SYSTEM)
+
+  App->>App: Detect BT device present
+  App->>IPC: Send "UNLOCK" signal
+  IPC->>CP: Deliver message
+  CP->>CP: Auto-submit credentials
 ```
 
 ## Implementation Steps
