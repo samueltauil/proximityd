@@ -1,5 +1,9 @@
 # ProximityD
 
+<p align="center">
+  <img src="assets/logo.svg" alt="ProximityD Logo" width="128" height="128">
+</p>
+
 [![CI](https://github.com/samueltauil/proximityd/actions/workflows/ci.yml/badge.svg)](https://github.com/samueltauil/proximityd/actions/workflows/ci.yml)
 [![Build](https://github.com/samueltauil/proximityd/actions/workflows/build.yml/badge.svg)](https://github.com/samueltauil/proximityd/actions/workflows/build.yml)
 [![Release](https://github.com/samueltauil/proximityd/actions/workflows/release.yml/badge.svg)](https://github.com/samueltauil/proximityd/actions/workflows/release.yml)

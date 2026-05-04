@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2979ff"/>
+      <stop offset="100%" stop-color="#0d47a1"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background rounded square -->
+  <rect x="32" y="32" width="448" height="448" rx="96" fill="url(#bg)"/>
+
+  <!-- Lock body -->
+  <rect x="156" y="268" width="128" height="108" rx="18" fill="#ffffff"/>
+
+  <!-- Keyhole -->
+  <circle cx="220" cy="314" r="14" fill="#0d47a1"/>
+  <rect x="213" y="322" width="14" height="28" rx="4" fill="#0d47a1"/>
+
+  <!-- Lock shackle that becomes the Bluetooth symbol -->
+  <!-- Shackle arc (left side only - open shackle = unlocked state hint) -->
+  <path d="M 190 268 L 190 210 C 190 172 218 148 250 148"
+        stroke="#ffffff" stroke-width="20" stroke-linecap="round" fill="none"/>
+
+  <!-- Bluetooth rune extending from shackle top -->
+  <path d="M 250 118 L 250 248 M 250 148 L 282 180 L 250 212 M 250 148 L 282 116"
+        stroke="#ffffff" stroke-width="16" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+  <!-- Proximity arcs (right side) -->
+  <path d="M 310 256 C 330 236 330 196 310 176"
+        stroke="#80d8ff" stroke-width="14" stroke-linecap="round" fill="none" opacity="0.8"/>
+  <path d="M 340 276 C 372 244 372 188 340 156"
+        stroke="#80d8ff" stroke-width="12" stroke-linecap="round" fill="none" opacity="0.55"/>
+  <path d="M 368 296 C 412 252 412 180 368 136"
+        stroke="#80d8ff" stroke-width="10" stroke-linecap="round" fill="none" opacity="0.3"/>
+</svg>
