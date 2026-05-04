@@ -53,9 +53,12 @@
     <rect x="144" y="270" width="200" height="160" rx="28" fill="url(#lockFace)"/>
   </g>
 
-  <!-- Keyhole -->
-  <circle cx="244" cy="332" r="18" fill="#0d1117"/>
-  <path d="M 236 346 L 244 392 L 252 346 Z" fill="#0d1117"/>
+  <!-- Keyhole — realistic shape: circle + rounded slot -->
+  <circle cx="244" cy="330" r="16" fill="#0d1117"/>
+  <rect x="237" y="340" width="14" height="40" rx="5" fill="#0d1117"/>
+  <!-- Inner highlight for depth -->
+  <circle cx="244" cy="330" r="10" fill="none" stroke="#2d333b" stroke-width="2" opacity="0.5"/>
+  <rect x="239" y="342" width="10" height="36" rx="4" fill="none" stroke="#2d333b" stroke-width="1.5" opacity="0.4"/>
 
   <!-- Proximity signal arcs -->
   <g filter="url(#softGlow)">
