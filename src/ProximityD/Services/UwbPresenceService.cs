@@ -22,7 +22,9 @@ public class UwbPresenceService : IDisposable
     public static bool IsUwbSupported => false;
 
     /// <summary>Raised when the UWB presence state changes. Currently never raised.</summary>
+#pragma warning disable CS0067 // Event is never used — stub for future UWB implementation
     public event EventHandler<UwbPresenceState>? PresenceChanged;
+#pragma warning restore CS0067
 
     /// <summary>Gets the current UWB presence state (always NotSupported).</summary>
     public UwbPresenceState CurrentState => UwbPresenceState.NotSupported;
