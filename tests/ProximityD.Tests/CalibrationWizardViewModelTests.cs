@@ -133,9 +133,15 @@ public class CalibrationWizardViewModelTests
         vm.NextStep(); vm.NextStep(); // NearCalibration
         vm.StartCollecting();
         vm.OnRssiReading(-65.0);
-        vm.StopCollecting();
 
-        // Start again
+        // Restart calibration on the same step (without auto-advancing on stop)
+        // by going back manually after stopping.
+        vm.StopCollecting();
+        if (vm.CurrentStep == WizardStep.AwayCalibration)
+        {
+            vm.PreviousStep(); // back to NearCalibration
+        }
+
         vm.StartCollecting();
         vm.NearSamples.Should().BeEmpty();
     }
@@ -145,24 +151,21 @@ public class CalibrationWizardViewModelTests
     {
         var vm = new CalibrationWizardViewModel();
 
-        // Collect near samples
+        // Collect near samples — Stop auto-advances to AwayCalibration.
         vm.NextStep(); vm.NextStep(); // NearCalibration
         vm.StartCollecting();
         for (var i = 0; i < 5; i++)
         {
             vm.OnRssiReading(-65.0);
         }
-
         vm.StopCollecting();
 
-        // Collect away samples
-        vm.NextStep(); // AwayCalibration
+        // Collect away samples — Stop auto-advances to Results and computes thresholds.
         vm.StartCollecting();
         for (var i = 0; i < 5; i++)
         {
             vm.OnRssiReading(-85.0);
         }
-
         vm.StopCollecting();
 
         vm.RecommendedUnlockThreshold.Should().NotBe(0);
@@ -186,22 +189,19 @@ public class CalibrationWizardViewModelTests
     {
         var vm = new CalibrationWizardViewModel();
 
-        // Run a complete calibration before applying
+        // Run a complete calibration before applying. Stop auto-advances near→away→results.
         vm.NextStep(); vm.NextStep(); // NearCalibration
         vm.StartCollecting();
         for (var i = 0; i < 5; i++)
         {
             vm.OnRssiReading(-65.0);
         }
-
         vm.StopCollecting();
-        vm.NextStep(); // AwayCalibration
         vm.StartCollecting();
         for (var i = 0; i < 5; i++)
         {
             vm.OnRssiReading(-85.0);
         }
-
         vm.StopCollecting();
 
         ThresholdRecommendation? recommendation = null;
@@ -219,22 +219,18 @@ public class CalibrationWizardViewModelTests
     {
         var vm = new CalibrationWizardViewModel();
 
-        // Run a complete calibration before applying
         vm.NextStep(); vm.NextStep(); // NearCalibration
         vm.StartCollecting();
         for (var i = 0; i < 5; i++)
         {
             vm.OnRssiReading(-65.0);
         }
-
         vm.StopCollecting();
-        vm.NextStep(); // AwayCalibration
         vm.StartCollecting();
         for (var i = 0; i < 5; i++)
         {
             vm.OnRssiReading(-85.0);
         }
-
         vm.StopCollecting();
 
         var closed = false;
@@ -275,15 +271,12 @@ public class CalibrationWizardViewModelTests
         {
             vm.OnRssiReading(-65.0);
         }
-
         vm.StopCollecting();
-        vm.NextStep(); // AwayCalibration
         vm.StartCollecting();
         for (var i = 0; i < 5; i++)
         {
             vm.OnRssiReading(-85.0);
         }
-
         vm.StopCollecting();
 
         vm.HasCalibrationData.Should().BeTrue();

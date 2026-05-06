@@ -38,6 +38,21 @@ public class BleScanner : IDisposable
     public event EventHandler<DiscoveredDevice>? DeviceDiscovered;
 
     /// <summary>
+    /// Fired for every advertisement received while <see cref="IsCalibrating"/> is true.
+    /// Bypasses tracked/enabled gating so the calibration wizard can collect samples for
+    /// any device the user picks, regardless of whether it is in the tracked list yet.
+    /// </summary>
+    public event EventHandler<BleDeviceReading>? CalibrationReadingReceived;
+
+    /// <summary>
+    /// When true, every received advertisement is also forwarded as a
+    /// <see cref="CalibrationReadingReceived"/> event, regardless of whether the
+    /// device is tracked. The wizard buckets samples by address itself so iOS
+    /// rotating private addresses are handled transparently.
+    /// </summary>
+    public bool IsCalibrating { get; set; }
+
+    /// <summary>
     /// Optional async callback used during pairing when the remote device requires a PIN
     /// to be entered on this PC (DevicePairingKinds.ProvidePin). The implementation should
     /// prompt the user and return the PIN they read off their phone, or null/empty to cancel.
@@ -163,6 +178,57 @@ public class BleScanner : IDisposable
         {
             _logger.LogError(ex, "Failed to enumerate paired BLE devices. Ensure Bluetooth is enabled.");
             throw;
+        }
+
+        // 1b. Enumerate paired Bluetooth Classic (BR/EDR) devices. iPhones pair over classic
+        //     Bluetooth, so they only show up here, not in the BLE-paired enumeration above.
+        try
+        {
+            var classicSelector = Windows.Devices.Bluetooth.BluetoothDevice.GetDeviceSelectorFromPairingState(true);
+            var pairedClassic = await DeviceInformation.FindAllAsync(classicSelector);
+
+            foreach (var device in pairedClassic)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                string addr;
+                try
+                {
+                    using var classic = await Windows.Devices.Bluetooth.BluetoothDevice.FromIdAsync(device.Id);
+                    addr = classic != null
+                        ? classic.BluetoothAddress.ToString("X12")
+                        : device.Id;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug(ex, "Failed to resolve classic address for {DeviceId}", device.Id);
+                    addr = device.Id;
+                }
+
+                if (devices.TryGetValue(addr, out var existing))
+                {
+                    existing.IsPaired = true;
+                    if (string.IsNullOrWhiteSpace(existing.DeviceName) || existing.DeviceName == "Unknown")
+                    {
+                        existing.DeviceName = device.Name ?? existing.DeviceName;
+                    }
+                }
+                else
+                {
+                    devices[addr] = new DiscoveredDevice
+                    {
+                        DeviceId = addr,
+                        DeviceName = string.IsNullOrWhiteSpace(device.Name) ? "Unknown" : device.Name,
+                        IsPaired = true
+                    };
+                }
+            }
+
+            _logger.LogInformation("Total paired devices (BLE + classic): {Count}", devices.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to enumerate paired classic Bluetooth devices");
         }
 
         // 2. Briefly listen for nearby advertisements to surface unpaired devices.
@@ -641,6 +707,23 @@ public class BleScanner : IDisposable
         var rssi = args.RawSignalStrengthInDBm;
         var localName = ExtractAdvertisementName(args.Advertisement);
 
+        // Calibration bypass: when the wizard is collecting, forward EVERY advert
+        // as a raw reading regardless of tracked/enabled status. The wizard
+        // buckets samples per address and locks onto the closest one. This makes
+        // the calibration robust against iOS BLE privacy (rotating RPAs) where
+        // the inbound advertisement address never matches the stored identity
+        // address from pairing.
+        if (IsCalibrating)
+        {
+            CalibrationReadingReceived?.Invoke(this, new BleDeviceReading
+            {
+                DeviceId = deviceId,
+                DeviceName = !string.IsNullOrWhiteSpace(localName) ? localName : "Calibration target",
+                Rssi = rssi,
+                Timestamp = DateTime.UtcNow
+            });
+        }
+
         // Check if this is a tracked device (match on Bluetooth address)
         var trackedDevice = _settings.TrackedDevices.FirstOrDefault(d =>
             d.Enabled && (d.DeviceId == deviceId || d.MacAddress == deviceId));
@@ -654,23 +737,167 @@ public class BleScanner : IDisposable
                 Rssi = rssi,
                 Timestamp = DateTime.UtcNow
             });
+            return;
         }
-        else
-        {
-            var displayName = !string.IsNullOrWhiteSpace(localName)
-                ? localName
-                : InferNameFromManufacturerData(args.Advertisement);
 
-            if (!string.IsNullOrWhiteSpace(displayName))
+        // No exact address match. iOS phones (and some Android privacy modes)
+        // broadcast Random Resolvable Private Addresses that rotate every
+        // ~15 minutes, so the address from this advert never matches the one
+        // stored at pairing time. For tracked devices flagged with
+        // AssumePrivacyMode, route the *strongest currently-nearby* phone-like
+        // advert as a reading for that tracked device. Filtering to phone-like
+        // advertisements (Apple iPhone Nearby Info, etc.) prevents nearby
+        // peripherals (mice, keyboards, AirPods) from being mistaken for the
+        // tracked phone — which would otherwise keep the engine in Present
+        // state forever and prevent lock-on-leave.
+        if (IsLikelyPhoneAdvertisement(args.Advertisement))
+        {
+            TrackPrivacyModeAdvert(deviceId, rssi, localName);
+        }
+
+        // Surface unknown adverts in the discovery feed (existing behavior).
+        var inferredName = !string.IsNullOrWhiteSpace(localName)
+            ? localName
+            : InferNameFromManufacturerData(args.Advertisement);
+
+        if (!string.IsNullOrWhiteSpace(inferredName))
+        {
+            DeviceDiscovered?.Invoke(this, new DiscoveredDevice
             {
-                DeviceDiscovered?.Invoke(this, new DiscoveredDevice
-                {
-                    DeviceId = deviceId,
-                    DeviceName = displayName,
-                    IsPaired = false
-                });
+                DeviceId = deviceId,
+                DeviceName = inferredName,
+                IsPaired = false
+            });
+        }
+    }
+
+    // Per-advertisement-address sliding window of recent RSSI readings, used to
+    // identify the closest currently-active source for AssumePrivacyMode tracked
+    // devices. Source entries older than _privacyModeWindow are pruned.
+    private readonly Dictionary<string, (short Rssi, DateTime LastSeen)> _recentAdvertSources = new();
+    private readonly TimeSpan _privacyModeWindow = TimeSpan.FromSeconds(5);
+
+    /// <summary>
+    /// Tracks the latest RSSI for the given advertisement source and, if it is
+    /// currently the strongest source within <see cref="_privacyModeWindow"/>,
+    /// emits it as a reading for any enabled tracked device whose
+    /// <see cref="TrackedDeviceConfig.AssumePrivacyMode"/> flag is true.
+    /// </summary>
+    private void TrackPrivacyModeAdvert(string sourceAddress, short rssi, string localName)
+    {
+        var privacyTargets = _settings.TrackedDevices
+            .Where(d => d.Enabled && d.AssumePrivacyMode)
+            .ToList();
+        if (privacyTargets.Count == 0)
+        {
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        lock (_recentAdvertSources)
+        {
+            _recentAdvertSources[sourceAddress] = (rssi, now);
+
+            // Prune stale entries.
+            var stale = _recentAdvertSources
+                .Where(kv => now - kv.Value.LastSeen > _privacyModeWindow)
+                .Select(kv => kv.Key)
+                .ToList();
+            foreach (var key in stale)
+            {
+                _recentAdvertSources.Remove(key);
+            }
+
+            // Is the current source the strongest within the window?
+            var strongest = _recentAdvertSources
+                .OrderByDescending(kv => kv.Value.Rssi)
+                .First();
+
+            if (strongest.Key != sourceAddress)
+            {
+                return;
             }
         }
+
+        // Forward this RSSI as a reading for each privacy-mode tracked device.
+        // Most users have one phone, so this fires once. The reading's DeviceId
+        // is the tracked device's stored id so ProximityEngine accumulates it
+        // under a stable key and the configured thresholds are applied.
+        foreach (var t in privacyTargets)
+        {
+            DeviceDetected?.Invoke(this, new BleDeviceReading
+            {
+                DeviceId = t.DeviceId,
+                DeviceName = !string.IsNullOrWhiteSpace(localName) ? localName : t.DeviceName,
+                Rssi = rssi,
+                Timestamp = now
+            });
+        }
+    }
+
+    /// <summary>
+    /// Heuristic: returns true if the advertisement looks like it came from a
+    /// modern smartphone (rather than a peripheral such as a mouse, keyboard,
+    /// or AirPods). Used by privacy-mode routing to avoid mistaking a closer
+    /// peripheral for the tracked phone — a misclassification that would
+    /// keep the engine in Present state and prevent lock-on-leave.
+    /// <para>
+    /// iPhone detection: Apple manufacturer (0x004C) with Nearby Info
+    /// (subtype 0x10) or Nearby Action (0x0F). These are broadcast continuously
+    /// by iOS while the device is unlocked. AirPods/AirTags use different
+    /// subtypes (0x07 Proximity Pairing, 0x12 Find My) and are excluded.
+    /// </para>
+    /// <para>
+    /// Other phone OSes (Samsung, Google, Xiaomi, etc.) are accepted by
+    /// company identifier match — those vendors don't typically ship BLE
+    /// peripherals broadcasting under their own company ID.
+    /// </para>
+    /// </summary>
+    private static bool IsLikelyPhoneAdvertisement(BluetoothLEAdvertisement? advertisement)
+    {
+        if (advertisement?.ManufacturerData == null || advertisement.ManufacturerData.Count == 0)
+        {
+            return false;
+        }
+
+        foreach (var md in advertisement.ManufacturerData)
+        {
+            switch (md.CompanyId)
+            {
+                case 0x004C: // Apple
+                {
+                    // Read first payload byte to distinguish iPhone from AirPods/AirTags.
+                    if (md.Data == null || md.Data.Length == 0)
+                    {
+                        continue;
+                    }
+                    try
+                    {
+                        var reader = Windows.Storage.Streams.DataReader.FromBuffer(md.Data);
+                        if (reader.UnconsumedBufferLength == 0) continue;
+                        var subtype = reader.ReadByte();
+                        // 0x10 Nearby Info, 0x0F Nearby Action — iPhone/iPad/Mac.
+                        if (subtype == 0x10 || subtype == 0x0F)
+                        {
+                            return true;
+                        }
+                    }
+                    catch
+                    {
+                        // ignore decode errors for this section
+                    }
+                    break;
+                }
+                case 0x0075: // Samsung
+                case 0x00E0: // Google
+                case 0x038F: // Xiaomi
+                case 0x0131: // Huawei
+                case 0x010F: // OnePlus
+                    return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -765,6 +992,7 @@ public class BleScanner : IDisposable
     public async Task<BlePairingResult> PairDeviceAsync(string bluetoothAddress, CancellationToken cancellationToken = default)
     {
 #if WINDOWS
+        _logger.LogInformation("PairDeviceAsync called with address={Addr}", bluetoothAddress);
         if (string.IsNullOrWhiteSpace(bluetoothAddress))
         {
             return new BlePairingResult(false, "No Bluetooth address provided");
@@ -966,7 +1194,7 @@ public class BleScanner : IDisposable
                     | DevicePairingKinds.ConfirmPinMatch
                     | DevicePairingKinds.ProvidePin;
 
-                var result = await custom.PairAsync(ceremonies, DevicePairingProtectionLevel.EncryptionAndAuthentication)
+                var result = await custom.PairAsync(ceremonies, DevicePairingProtectionLevel.Default)
                     .AsTask(cancellationToken);
 
                 _logger.LogInformation("Classic pairing result for {Addr}: {Status}", bluetoothAddress, result.Status);

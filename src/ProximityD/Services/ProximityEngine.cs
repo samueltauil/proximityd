@@ -19,6 +19,12 @@ public class ProximityEngine : IDisposable
 
     public event EventHandler<ProximityEvent>? ProximityChanged;
 
+    /// <summary>
+    /// Fired for every processed reading (not just state transitions). Used by UI for
+    /// real-time signal-graph plotting and calibration sample collection.
+    /// </summary>
+    public event EventHandler<ProximityEvent>? ReadingProcessed;
+
     public ProximityEngine(ILogger<ProximityEngine> logger, AppSettings settings)
     {
         _logger = logger;
@@ -43,6 +49,19 @@ public class ProximityEngine : IDisposable
 
             // Determine proximity state with hysteresis
             var newState = DetermineState(state, smoothedRssi);
+
+            // Always emit a per-reading event so UI consumers (signal graph, calibration
+            // wizard) get a continuous data stream — ProximityChanged below only fires
+            // on transitions.
+            ReadingProcessed?.Invoke(this, new ProximityEvent
+            {
+                DeviceId = deviceId,
+                DeviceName = deviceName,
+                State = newState,
+                Rssi = rssi,
+                SmoothedRssi = smoothedRssi,
+                Timestamp = DateTime.UtcNow
+            });
 
             if (newState != state.CurrentState)
             {

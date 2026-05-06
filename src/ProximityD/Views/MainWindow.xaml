@@ -98,8 +98,20 @@
                         <Button Content="Save" Command="{Binding SaveSettingsCommand}" Padding="10,5" Margin="0,0,10,0"/>
                     </StackPanel>
 
-                    <TextBlock Grid.Row="1" Foreground="Gray" TextWrapping="Wrap" Margin="0,0,0,10"
-                               Text="Tip: iPhones only broadcast their name while the Settings &gt; Bluetooth screen is open. Keep that screen visible during the 15s Discover scan. Closest device sorts to the top by RSSI. Click the Name to rename."/>
+                    <Expander Grid.Row="1" Header="How to pair an iPhone or Android phone"
+                              Margin="0,0,0,10" Foreground="#34495E">
+                        <Border Background="#F5F8FA" BorderBrush="#D8DEE2" BorderThickness="1"
+                                CornerRadius="6" Padding="12" Margin="0,6,0,0">
+                            <StackPanel>
+                                <TextBlock TextWrapping="Wrap" Margin="0,0,0,6"
+                                           Text="1. Click Discover Devices. On the phone, open Settings → Bluetooth and keep that screen visible during the 15-second scan."/>
+                                <TextBlock TextWrapping="Wrap" Margin="0,0,0,6"
+                                           Text="2. When your phone shows up in the list, click Pair next to it. The app will open Windows Bluetooth settings and walk you through the next steps."/>
+                                <TextBlock TextWrapping="Wrap"
+                                           Text="Tip: closest device sorts to the top by RSSI. You can rename a device by clicking its Name."/>
+                            </StackPanel>
+                        </Border>
+                    </Expander>
 
                     <ListView Grid.Row="2" ItemsSource="{Binding TrackedDevices}">
                         <ListView.View>

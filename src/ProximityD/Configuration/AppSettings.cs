@@ -133,6 +133,15 @@ public class TrackedDeviceConfig
     public string DeviceName { get; set; } = string.Empty;
     public string MacAddress { get; set; } = string.Empty;
     public bool Enabled { get; set; } = true;
+
+    /// <summary>
+    /// When true, the scanner treats the strongest currently-nearby BLE
+    /// advertisement as a reading for this device, ignoring address mismatches.
+    /// Required for iOS phones, which broadcast Random Resolvable Private
+    /// Addresses (RPAs) that rotate every ~15 minutes and never match the
+    /// stored identity address from pairing. Default true.
+    /// </summary>
+    public bool AssumePrivacyMode { get; set; } = true;
 }
 
 public enum SignalFilterType

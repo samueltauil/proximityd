@@ -1,0 +1,47 @@
+<Window x:Class="ProximityD.Views.PairInstructionsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Pair your phone"
+        Width="520" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="Pair your phone with this PC"
+                   FontSize="18" FontWeight="SemiBold" Margin="0,0,0,12"/>
+
+        <TextBlock Grid.Row="1" x:Name="DeviceNameText" FontSize="13"
+                   Foreground="#555" Margin="0,0,0,16" TextWrapping="Wrap"/>
+
+        <Border Grid.Row="2" Background="#F5F8FA" BorderBrush="#D8DEE2"
+                BorderThickness="1" CornerRadius="6" Padding="14">
+            <StackPanel>
+                <TextBlock Text="1. Windows Settings just opened. Click ‘Add device’ → ‘Bluetooth’."
+                           TextWrapping="Wrap" Margin="0,0,0,8"/>
+                <TextBlock Text="2. On your phone, open Settings → Bluetooth and keep that screen open."
+                           TextWrapping="Wrap" Margin="0,0,0,8"/>
+                <TextBlock Text="3. When this PC appears on your phone, tap it. Confirm the matching code on both screens."
+                           TextWrapping="Wrap" Margin="0,0,0,8"/>
+                <TextBlock Text="4. When pairing finishes, click ‘I've paired – refresh’ below."
+                           TextWrapping="Wrap"/>
+            </StackPanel>
+        </Border>
+
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right"
+                    Margin="0,16,0,0">
+            <Button Content="Open Windows Bluetooth again"
+                    Click="OpenSettings_Click" Padding="10,6" Margin="0,0,8,0"/>
+            <Button Content="Cancel" IsCancel="True" Padding="14,6" Margin="0,0,8,0"/>
+            <Button Content="I've paired – refresh" Click="Done_Click"
+                    IsDefault="True" Padding="14,6"
+                    Background="#2C7BE5" Foreground="White"/>
+        </StackPanel>
+    </Grid>
+</Window>

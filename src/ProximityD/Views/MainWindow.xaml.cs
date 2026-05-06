@@ -18,6 +18,32 @@ public partial class MainWindow : Window
         // Provide a UI prompt for pairings that require a PIN to be typed on the PC
         // (some Android devices and legacy Bluetooth pairings).
         _viewModel.SetPinPromptHandler(PromptForPinAsync);
+
+        // Hook the pair-flow UI: launches Windows Bluetooth settings + shows clear steps,
+        // then re-runs Discover so paired status updates.
+        _viewModel.SetPairFlowHandler(ShowPairInstructionsAsync);
+    }
+
+    private Task<bool> ShowPairInstructionsAsync(string deviceName, string deviceId)
+    {
+        return Dispatcher.InvokeAsync(() =>
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "ms-settings:bluetooth",
+                    UseShellExecute = true
+                });
+            }
+            catch
+            {
+                // user can open it manually from the dialog
+            }
+
+            var dialog = new PairInstructionsWindow(deviceName, deviceId) { Owner = this };
+            return dialog.ShowDialog() == true;
+        }).Task;
     }
 
     private Task<string?> PromptForPinAsync(string deviceAddress)
@@ -38,6 +64,29 @@ public partial class MainWindow : Window
     {
         // Reset the singleton ViewModel so every wizard session starts fresh.
         _viewModel.CalibrationWizard.Reset();
+
+        // Populate the device picker with currently-tracked PAIRED devices. Calibration
+        // requires a real signal stream, which only paired devices reliably provide,
+        // and the user already manages pairing on the Devices tab.
+        _viewModel.CalibrationWizard.SetAvailableDevices(
+            _viewModel.TrackedDevices
+                .Where(d => d.IsPaired)
+                .Select(d => new CalibrationDeviceOption
+                {
+                    DeviceId = d.DeviceId,
+                    DeviceName = d.DeviceName
+                }));
+
+        if (_viewModel.CalibrationWizard.AvailableDevices.Count == 0)
+        {
+            MessageBox.Show(this,
+                "No paired devices available. Open the Devices tab, click \"Discover Devices\", pair a phone, then try again.",
+                "Calibration",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+            return;
+        }
+
         var wizard = new CalibrationWizardWindow(_viewModel.CalibrationWizard);
         wizard.Owner = this;
         _viewModel.CalibrationWizard.ThresholdsApplied += OnThresholdsApplied;

@@ -94,10 +94,21 @@ public partial class MainViewModel : ObservableObject
 
         // Subscribe to events
         _backgroundService.ProximityStateChanged += OnProximityStateChanged;
+        _backgroundService.ReadingProcessed += OnReadingProcessed;
         _backgroundService.StatusChanged += OnStatusChanged;
         _bleScanner.DeviceDetected += OnDeviceDetected;
+        _bleScanner.CalibrationReadingReceived += OnCalibrationReading;
 
-        // Load tracked devices
+        // Bridge wizard collection state to the BleScanner: when the wizard starts
+        // collecting, route raw advertisements for the selected device into the
+        // wizard (and signal graph) regardless of whether it is enabled / tracked.
+        CalibrationWizard.PropertyChanged += OnCalibrationWizardPropertyChanged;
+
+        // Load tracked devices. We don't persist IsPaired in settings, so initialize to
+        // false; the next discovery pass will set it authoritatively. (Previously we
+        // optimistically set IsPaired=true here, which combined with a never-downgrade
+        // merge below caused devices to remain "paired" in the UI even when they were
+        // not actually paired.)
         foreach (var device in settings.TrackedDevices)
         {
             TrackedDevices.Add(new DeviceViewModel
@@ -106,7 +117,7 @@ public partial class MainViewModel : ObservableObject
                 DeviceName = device.DeviceName,
                 MacAddress = device.MacAddress,
                 IsEnabled = device.Enabled,
-                IsPaired = true
+                IsPaired = false
             });
         }
     }
@@ -147,7 +158,10 @@ public partial class MainViewModel : ObservableObject
                     }
                     else
                     {
-                        existing.IsPaired = device.IsPaired || existing.IsPaired;
+                        // Trust the discovery result for paired status — it is the
+                        // authoritative source (Phase 1: paired BLE + classic
+                        // enumeration). Don't OR with stale UI state.
+                        existing.IsPaired = device.IsPaired;
                         if (device.Rssi != 0)
                         {
                             existing.LastRssi = device.Rssi;
@@ -212,44 +226,73 @@ public partial class MainViewModel : ObservableObject
         SaveSettings();
     }
 
+    private bool _suppressBackgroundStatus;
+
     [RelayCommand]
     private async Task PairDeviceAsync(DeviceViewModel? device)
     {
         if (device == null)
         {
+            AddLogEntry("Pair: no device selected.");
             return;
         }
 
-        StatusText = $"Pairing {device.DeviceName}...";
-        AddLogEntry($"Pairing {device.DeviceName} ({device.DeviceId})... approve the prompt on the device.");
+        if (_pairFlowHandler == null)
+        {
+            AddLogEntry("Pair: UI handler not registered.");
+            return;
+        }
+
+        _suppressBackgroundStatus = true;
+        StatusText = $"Pair {device.DeviceName}: follow the instructions...";
+        AddLogEntry($"Pair flow opened for {device.DeviceName} ({device.DeviceId}).");
+
         try
         {
-            var result = await _bleScanner.PairDeviceAsync(device.DeviceId);
+            var confirmed = await _pairFlowHandler(device.DeviceName, device.DeviceId);
+            if (!confirmed)
+            {
+                StatusText = "Pairing cancelled.";
+                AddLogEntry("Pairing cancelled by user.");
+                return;
+            }
+
+            StatusText = "Refreshing device list...";
+            AddLogEntry("Refreshing device list to detect newly paired devices...");
+            _suppressBackgroundStatus = false;
+            await DiscoverDevicesAsync();
+
+            // Mark this device's row as paired if the refresh confirmed it.
             _dispatcher.Invoke(() =>
             {
-                if (result.Success)
+                var refreshed = TrackedDevices.FirstOrDefault(d =>
+                    string.Equals(d.DeviceId, device.DeviceId, StringComparison.OrdinalIgnoreCase));
+                if (refreshed != null && refreshed.IsPaired)
                 {
-                    device.IsPaired = true;
-                    device.IsEnabled = true;
-                    StatusText = $"Paired {device.DeviceName}";
-                    AddLogEntry($"Paired {device.DeviceName}: {result.Message}");
+                    refreshed.IsEnabled = true;
                     SaveSettings();
+                    StatusText = $"{refreshed.DeviceName} is paired.";
+                    AddLogEntry($"{refreshed.DeviceName} is now paired.");
                 }
                 else
                 {
-                    StatusText = $"Pairing failed: {result.Message}";
-                    AddLogEntry($"Pairing failed for {device.DeviceName}: {result.Message}");
+                    StatusText = "Pair not detected yet. If you completed pairing on the phone, click Discover Devices again.";
+                    AddLogEntry("Could not confirm pair status from refresh. Try Discover Devices again.");
                 }
             });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Pairing failed");
+            _logger.LogError(ex, "Pairing flow failed");
             _dispatcher.Invoke(() =>
             {
-                StatusText = $"Pairing failed: {ex.Message}";
-                AddLogEntry($"Pairing exception: {ex.Message}");
+                StatusText = $"Pair error: {ex.Message}";
+                AddLogEntry($"Pair error: {ex.Message}");
             });
+        }
+        finally
+        {
+            _suppressBackgroundStatus = false;
         }
     }
 
@@ -265,20 +308,6 @@ public partial class MainViewModel : ObservableObject
         _dispatcher.Invoke(() =>
         {
             ProximityStateText = evt.State.ToString();
-            CurrentRssi = evt.Rssi;
-            SmoothedRssi = evt.SmoothedRssi;
-            if (_settings.EnableDistanceMode)
-            {
-                DistanceMeters = _distanceEstimator.EstimateDistance(evt.SmoothedRssi);
-            }
-            SignalGraph.AddDataPoint(evt.Timestamp, evt.Rssi, evt.SmoothedRssi);
-            // Only feed readings for the selected calibration device to avoid mixing signals.
-            // Require an explicit device selection; ignore readings when none is chosen.
-            if (!string.IsNullOrEmpty(CalibrationWizard.SelectedDeviceId) &&
-                CalibrationWizard.SelectedDeviceId == evt.DeviceId)
-            {
-                CalibrationWizard.OnRssiReading(evt.SmoothedRssi);
-            }
             AddLogEntry($"[{evt.Timestamp:HH:mm:ss}] {evt.DeviceName}: {evt.State} (RSSI: {evt.Rssi}, Smoothed: {evt.SmoothedRssi:F1})");
 
             // Update device in list
@@ -291,8 +320,39 @@ public partial class MainViewModel : ObservableObject
         });
     }
 
+    private void OnReadingProcessed(object? sender, ProximityEvent evt)
+    {
+        _dispatcher.Invoke(() =>
+        {
+            CurrentRssi = evt.Rssi;
+            SmoothedRssi = evt.SmoothedRssi;
+            if (_settings.EnableDistanceMode)
+            {
+                DistanceMeters = _distanceEstimator.EstimateDistance(evt.SmoothedRssi);
+            }
+
+            // Continuous live signal graph (every reading, not just state changes).
+            SignalGraph.AddDataPoint(evt.Timestamp, evt.Rssi, evt.SmoothedRssi);
+
+            // Continuous calibration sample feed for the device the user picked in the wizard.
+            if (!string.IsNullOrEmpty(CalibrationWizard.SelectedDeviceId) &&
+                CalibrationWizard.SelectedDeviceId == evt.DeviceId)
+            {
+                CalibrationWizard.OnRssiReading(evt.SmoothedRssi);
+            }
+
+            // Update RSSI on the matching list row even between state transitions.
+            var device = TrackedDevices.FirstOrDefault(d => d.DeviceId == evt.DeviceId);
+            if (device != null)
+            {
+                device.LastRssi = evt.Rssi;
+            }
+        });
+    }
+
     private void OnStatusChanged(object? sender, string status)
     {
+        if (_suppressBackgroundStatus) return;
         _dispatcher.Invoke(() => StatusText = status);
     }
 
@@ -303,6 +363,30 @@ public partial class MainViewModel : ObservableObject
             CurrentRssi = reading.Rssi;
             IsScanning = true;
         });
+    }
+
+    private void OnCalibrationReading(object? sender, BleDeviceReading reading)
+    {
+        // Raw advertisement received while the wizard is collecting. Pass the
+        // address through so the wizard can bucket per-device and lock onto the
+        // closest one (handles iOS rotating BLE addresses).
+        _dispatcher.Invoke(() =>
+        {
+            CalibrationWizard.OnRssiReading(reading.DeviceId, reading.Rssi);
+            SignalGraph.AddDataPoint(reading.Timestamp, reading.Rssi, reading.Rssi);
+        });
+    }
+
+    private void OnCalibrationWizardPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(CalibrationWizardViewModel.IsCollectingSamples))
+        {
+            // Toggle scanner-wide calibration mode: forward every advert as a
+            // raw reading regardless of pairing/tracking. Robust against iOS
+            // BLE privacy where the inbound advertisement address differs from
+            // the stored classic Bluetooth address.
+            _bleScanner.IsCalibrating = CalibrationWizard.IsCollectingSamples;
+        }
     }
 
     private void AddLogEntry(string message)
@@ -322,6 +406,17 @@ public partial class MainViewModel : ObservableObject
     public void SetPinPromptHandler(Func<string, Task<string?>> handler)
     {
         _bleScanner.PinRequested = handler;
+    }
+
+    /// <summary>
+    /// Called by the View to register a handler that displays the pairing instructions
+    /// dialog (and opens Windows Bluetooth Settings). Returns true if the user clicked
+    /// "I've paired", false on cancel.
+    /// </summary>
+    private Func<string, string, Task<bool>>? _pairFlowHandler;
+    public void SetPairFlowHandler(Func<string, string, Task<bool>> handler)
+    {
+        _pairFlowHandler = handler;
     }
 }
 

@@ -18,6 +18,12 @@ public class ProximityBackgroundService : BackgroundService
     private readonly AppSettings _settings;
 
     public event EventHandler<ProximityEvent>? ProximityStateChanged;
+
+    /// <summary>
+    /// Fires for every processed reading (every advertisement), not just state
+    /// transitions. Consumers: real-time signal graph, calibration wizard.
+    /// </summary>
+    public event EventHandler<ProximityEvent>? ReadingProcessed;
     public event EventHandler<string>? StatusChanged;
 
     public ProximityBackgroundService(
@@ -38,6 +44,7 @@ public class ProximityBackgroundService : BackgroundService
         // Wire up events
         _bleScanner.DeviceDetected += OnDeviceDetected;
         _proximityEngine.ProximityChanged += OnProximityChanged;
+        _proximityEngine.ReadingProcessed += OnReadingProcessed;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -90,6 +97,11 @@ public class ProximityBackgroundService : BackgroundService
         _actionService.OnProximityChanged(evt.State);
     }
 
+    private void OnReadingProcessed(object? sender, ProximityEvent evt)
+    {
+        ReadingProcessed?.Invoke(this, evt);
+    }
+
     private void OnWifiPresenceChanged(object? sender, WifiPresenceState state)
     {
         _logger.LogInformation("WiFi presence state: {State}", state);
@@ -100,6 +112,7 @@ public class ProximityBackgroundService : BackgroundService
     {
         _bleScanner.DeviceDetected -= OnDeviceDetected;
         _proximityEngine.ProximityChanged -= OnProximityChanged;
+        _proximityEngine.ReadingProcessed -= OnReadingProcessed;
         _bleScanner.Dispose();
         _proximityEngine.Dispose();
         _wifiPresenceService.Dispose();
