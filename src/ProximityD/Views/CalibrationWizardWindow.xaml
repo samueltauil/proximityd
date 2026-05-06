@@ -4,6 +4,7 @@
         Title="Calibration Wizard"
         Height="500" Width="600"
         WindowStartupLocation="CenterOwner"
+        Icon="pack://application:,,,/Assets/logo.png"
         ResizeMode="NoResize">
 
     <Grid Margin="20">

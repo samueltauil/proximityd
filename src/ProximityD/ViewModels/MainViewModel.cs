@@ -114,24 +114,39 @@ public partial class MainViewModel : ObservableObject
     private async Task DiscoverDevicesAsync()
     {
         StatusText = "Discovering devices...";
-        var devices = await _bleScanner.DiscoverDevicesAsync();
-
-        _dispatcher.Invoke(() =>
+        try
         {
-            foreach (var device in devices)
+            var devices = await _bleScanner.DiscoverDevicesAsync();
+
+            _dispatcher.Invoke(() =>
             {
-                if (!TrackedDevices.Any(d => d.DeviceId == device.DeviceId))
+                int added = 0;
+                foreach (var device in devices)
                 {
-                    TrackedDevices.Add(new DeviceViewModel
+                    if (!TrackedDevices.Any(d => d.DeviceId == device.DeviceId))
                     {
-                        DeviceId = device.DeviceId,
-                        DeviceName = device.DeviceName,
-                        IsEnabled = false
-                    });
+                        TrackedDevices.Add(new DeviceViewModel
+                        {
+                            DeviceId = device.DeviceId,
+                            DeviceName = device.DeviceName,
+                            IsEnabled = false
+                        });
+                        added++;
+                    }
                 }
-            }
-            StatusText = $"Found {devices.Count} devices";
-        });
+                StatusText = $"Found {devices.Count} device(s) ({added} new)";
+                AddLogEntry($"Discovery complete: {devices.Count} device(s), {added} new");
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Device discovery failed");
+            _dispatcher.Invoke(() =>
+            {
+                StatusText = $"Discovery failed: {ex.Message}";
+                AddLogEntry($"Discovery failed: {ex.Message}");
+            });
+        }
     }
 
     [RelayCommand]

@@ -109,54 +109,150 @@ public class BleScanner : IDisposable
 
     /// <summary>
     /// Discover available BLE devices for pairing/tracking.
+    /// Returns paired devices and any nearby unpaired devices observed via active
+    /// advertisement scanning during the discovery window.
     /// Uses the Bluetooth address as the device identifier for consistency with advertisement tracking.
     /// </summary>
     public async Task<List<DiscoveredDevice>> DiscoverDevicesAsync(CancellationToken cancellationToken = default)
     {
-        var devices = new List<DiscoveredDevice>();
+        var devices = new Dictionary<string, DiscoveredDevice>(StringComparer.OrdinalIgnoreCase);
 
 #if WINDOWS
-        var deviceSelector = BluetoothLEDevice.GetDeviceSelectorFromPairingState(true);
-        var pairedDevices = await DeviceInformation.FindAllAsync(deviceSelector);
-
-        foreach (var device in pairedDevices)
+        // 1. Enumerate paired BLE devices
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            var deviceSelector = BluetoothLEDevice.GetDeviceSelectorFromPairingState(true);
+            var pairedDevices = await DeviceInformation.FindAllAsync(deviceSelector);
 
-            // Resolve BluetoothAddress for consistent identification with advertisement watcher
-            string bluetoothAddress = string.Empty;
-            try
+            foreach (var device in pairedDevices)
             {
-                using var bleDevice = await BluetoothLEDevice.FromIdAsync(device.Id);
-                if (bleDevice != null)
+                cancellationToken.ThrowIfCancellationRequested();
+
+                // Resolve BluetoothAddress for consistent identification with advertisement watcher
+                string bluetoothAddress;
+                try
                 {
-                    bluetoothAddress = bleDevice.BluetoothAddress.ToString("X12");
+                    using var bleDevice = await BluetoothLEDevice.FromIdAsync(device.Id);
+                    bluetoothAddress = bleDevice != null
+                        ? bleDevice.BluetoothAddress.ToString("X12")
+                        : device.Id;
                 }
-            }
-            catch
-            {
-                // If we can't resolve the address, use the device ID as fallback
-                bluetoothAddress = device.Id;
+                catch (Exception ex)
+                {
+                    _logger.LogDebug(ex, "Failed to resolve BluetoothAddress for {DeviceId}", device.Id);
+                    bluetoothAddress = device.Id;
+                }
+
+                devices[bluetoothAddress] = new DiscoveredDevice
+                {
+                    DeviceId = bluetoothAddress,
+                    DeviceName = string.IsNullOrWhiteSpace(device.Name) ? "Unknown" : device.Name,
+                    IsPaired = true
+                };
             }
 
-            devices.Add(new DiscoveredDevice
-            {
-                DeviceId = bluetoothAddress,
-                DeviceName = string.IsNullOrWhiteSpace(device.Name) ? "Unknown" : device.Name,
-                IsPaired = true
-            });
+            _logger.LogInformation("Found {Count} paired BLE devices", devices.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to enumerate paired BLE devices. Ensure Bluetooth is enabled.");
+            throw;
         }
 
-        _logger.LogInformation("Found {Count} paired BLE devices", devices.Count);
+        // 2. Briefly listen for nearby advertisements to surface unpaired devices.
+        try
+        {
+            await ScanForNearbyAdvertisementsAsync(devices, TimeSpan.FromSeconds(8), cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            // expected on cancellation
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Active advertisement scan failed");
+        }
 #else
         // Simulated devices for testing
         await Task.Delay(1000, cancellationToken);
-        devices.Add(new DiscoveredDevice { DeviceId = "AABBCCDDEEFF", DeviceName = "Simulated Phone", IsPaired = true });
-        devices.Add(new DiscoveredDevice { DeviceId = "112233445566", DeviceName = "Simulated Watch", IsPaired = true });
+        devices["AABBCCDDEEFF"] = new DiscoveredDevice { DeviceId = "AABBCCDDEEFF", DeviceName = "Simulated Phone", IsPaired = true };
+        devices["112233445566"] = new DiscoveredDevice { DeviceId = "112233445566", DeviceName = "Simulated Watch", IsPaired = true };
 #endif
 
-        return devices;
+        return devices.Values.ToList();
     }
+
+#if WINDOWS
+    private Task ScanForNearbyAdvertisementsAsync(
+        Dictionary<string, DiscoveredDevice> devices,
+        TimeSpan duration,
+        CancellationToken cancellationToken)
+    {
+        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var watcher = new BluetoothLEAdvertisementWatcher
+        {
+            ScanningMode = BluetoothLEScanningMode.Active,
+            SignalStrengthFilter =
+            {
+                InRangeThresholdInDBm = -100,
+                OutOfRangeThresholdInDBm = -105,
+                OutOfRangeTimeout = TimeSpan.FromSeconds(5)
+            }
+        };
+
+        void OnReceived(BluetoothLEAdvertisementWatcher s, BluetoothLEAdvertisementReceivedEventArgs args)
+        {
+            var address = args.BluetoothAddress.ToString("X12");
+            var name = args.Advertisement.LocalName;
+            lock (devices)
+            {
+                if (devices.TryGetValue(address, out var existing))
+                {
+                    if (string.IsNullOrWhiteSpace(existing.DeviceName) || existing.DeviceName == "Unknown")
+                    {
+                        existing.DeviceName = string.IsNullOrWhiteSpace(name) ? existing.DeviceName : name;
+                    }
+                }
+                else if (!string.IsNullOrWhiteSpace(name))
+                {
+                    devices[address] = new DiscoveredDevice
+                    {
+                        DeviceId = address,
+                        DeviceName = name,
+                        IsPaired = false
+                    };
+                }
+            }
+        }
+
+        watcher.Received += OnReceived;
+        watcher.Start();
+        _logger.LogInformation("Active BLE discovery started ({Seconds}s)", duration.TotalSeconds);
+
+        var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        cts.CancelAfter(duration);
+        cts.Token.Register(() =>
+        {
+            try
+            {
+                watcher.Stop();
+                watcher.Received -= OnReceived;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Error stopping discovery watcher");
+            }
+            finally
+            {
+                cts.Dispose();
+                tcs.TrySetResult(true);
+            }
+        });
+
+        return tcs.Task;
+    }
+#endif
 
 #if WINDOWS
     private void OnAdvertisementReceived(BluetoothLEAdvertisementWatcher sender, BluetoothLEAdvertisementReceivedEventArgs args)

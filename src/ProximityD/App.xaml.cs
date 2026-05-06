@@ -128,7 +128,7 @@ public partial class App : Application
     {
         _trayIcon = new TaskbarIcon
         {
-            Icon = SystemIcons.Application,
+            Icon = LoadAppIcon(),
             ToolTipText = "ProximityD - Bluetooth Proximity Detection",
             MenuActivation = PopupActivationMode.RightClick
         };
@@ -177,6 +177,25 @@ public partial class App : Application
 
         Log.CloseAndFlush();
         base.OnExit(e);
+    }
+
+    private static Icon LoadAppIcon()
+    {
+        try
+        {
+            var uri = new Uri("pack://application:,,,/Assets/app.ico", UriKind.Absolute);
+            using var stream = Application.GetResourceStream(uri)?.Stream;
+            if (stream != null)
+            {
+                return new Icon(stream);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Failed to load tray icon from resources, falling back to system icon");
+        }
+
+        return SystemIcons.Application;
     }
 }
 
