@@ -52,9 +52,10 @@
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <StackPanel Grid.Column="0">
+                <StackPanel Grid.Column="0" Margin="0,0,10,0">
                     <TextBlock Text="Status" FontWeight="SemiBold" Foreground="#7F8C8D" FontSize="11"/>
-                    <TextBlock Text="{Binding StatusText}" FontSize="14" Margin="0,3,0,0"/>
+                    <TextBlock Text="{Binding StatusText}" FontSize="14" Margin="0,3,0,0"
+                               TextWrapping="Wrap" TextTrimming="CharacterEllipsis"/>
                 </StackPanel>
 
                 <StackPanel Grid.Column="1">
@@ -87,16 +88,20 @@
                 <Grid Margin="10">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
-                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,6">
                         <Button Content="Discover Devices" Command="{Binding DiscoverDevicesCommand}" Padding="10,5" Margin="0,0,10,0"/>
                         <Button Content="Calibrate" Click="Calibrate_Click" Padding="10,5" Margin="0,0,10,0"/>
-                        <Button Content="Save" Command="{Binding SaveSettingsCommand}" Padding="10,5"/>
+                        <Button Content="Save" Command="{Binding SaveSettingsCommand}" Padding="10,5" Margin="0,0,10,0"/>
                     </StackPanel>
 
-                    <ListView Grid.Row="1" ItemsSource="{Binding TrackedDevices}">
+                    <TextBlock Grid.Row="1" Foreground="Gray" TextWrapping="Wrap" Margin="0,0,0,10"
+                               Text="Tip: iPhones only broadcast their name while the Settings &gt; Bluetooth screen is open. Keep that screen visible during the 15s Discover scan. Closest device sorts to the top by RSSI. Click the Name to rename."/>
+
+                    <ListView Grid.Row="2" ItemsSource="{Binding TrackedDevices}">
                         <ListView.View>
                             <GridView>
                                 <GridViewColumn Header="Enabled" Width="60">
@@ -106,10 +111,42 @@
                                         </DataTemplate>
                                     </GridViewColumn.CellTemplate>
                                 </GridViewColumn>
-                                <GridViewColumn Header="Name" Width="200" DisplayMemberBinding="{Binding DeviceName}"/>
-                                <GridViewColumn Header="ID" Width="200" DisplayMemberBinding="{Binding DeviceId}"/>
-                                <GridViewColumn Header="State" Width="100" DisplayMemberBinding="{Binding LastState}"/>
-                                <GridViewColumn Header="RSSI" Width="80" DisplayMemberBinding="{Binding LastRssi}"/>
+                                <GridViewColumn Header="Name" Width="220">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBox Text="{Binding DeviceName, UpdateSourceTrigger=LostFocus}"
+                                                     BorderThickness="0" Background="Transparent"
+                                                     Padding="2"
+                                                     ToolTip="Click to rename. Hint: walk closer to identify your device by RSSI."/>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Header="ID" Width="160" DisplayMemberBinding="{Binding DeviceId}"/>
+                                <GridViewColumn Header="State" Width="90" DisplayMemberBinding="{Binding LastState}"/>
+                                <GridViewColumn Header="RSSI" Width="60" DisplayMemberBinding="{Binding LastRssi}"/>
+                                <GridViewColumn Header="Paired" Width="60">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding IsPaired}" HorizontalAlignment="Center"/>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
+                                <GridViewColumn Header="Action" Width="160">
+                                    <GridViewColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Orientation="Horizontal">
+                                                <Button Content="Pair"
+                                                        Padding="6,2" Margin="0,0,4,0"
+                                                        Command="{Binding DataContext.PairDeviceCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding}"/>
+                                                <Button Content="Forget"
+                                                        Padding="6,2"
+                                                        Command="{Binding DataContext.ForgetDeviceCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding}"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </GridViewColumn.CellTemplate>
+                                </GridViewColumn>
                             </GridView>
                         </ListView.View>
                     </ListView>

@@ -37,3 +37,5 @@ $RECYCLE.BIN/
 # Logs
 logs/
 *.log
+
+dist/

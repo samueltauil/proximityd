@@ -105,7 +105,8 @@ public partial class MainViewModel : ObservableObject
                 DeviceId = device.DeviceId,
                 DeviceName = device.DeviceName,
                 MacAddress = device.MacAddress,
-                IsEnabled = device.Enabled
+                IsEnabled = device.Enabled,
+                IsPaired = true
             });
         }
     }
@@ -113,7 +114,8 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private async Task DiscoverDevicesAsync()
     {
-        StatusText = "Discovering devices...";
+        StatusText = "Discovering... (15s)";
+        AddLogEntry("Discovery started. Keep iOS/Android Settings > Bluetooth open during the scan so phones broadcast their name.");
         try
         {
             var devices = await _bleScanner.DiscoverDevicesAsync();
@@ -121,17 +123,39 @@ public partial class MainViewModel : ObservableObject
             _dispatcher.Invoke(() =>
             {
                 int added = 0;
-                foreach (var device in devices)
+                // Sort by signal strength: closest device floats to top so users can identify
+                // their phone by walking up to the PC during discovery.
+                var ordered = devices
+                    .OrderByDescending(d => d.IsPaired)
+                    .ThenByDescending(d => d.Rssi == 0 ? short.MinValue : d.Rssi)
+                    .ToList();
+
+                foreach (var device in ordered)
                 {
-                    if (!TrackedDevices.Any(d => d.DeviceId == device.DeviceId))
+                    var existing = TrackedDevices.FirstOrDefault(d => d.DeviceId == device.DeviceId);
+                    if (existing == null)
                     {
                         TrackedDevices.Add(new DeviceViewModel
                         {
                             DeviceId = device.DeviceId,
                             DeviceName = device.DeviceName,
-                            IsEnabled = false
+                            IsEnabled = false,
+                            IsPaired = device.IsPaired,
+                            LastRssi = device.Rssi
                         });
                         added++;
+                    }
+                    else
+                    {
+                        existing.IsPaired = device.IsPaired || existing.IsPaired;
+                        if (device.Rssi != 0)
+                        {
+                            existing.LastRssi = device.Rssi;
+                        }
+                        if (string.IsNullOrWhiteSpace(existing.DeviceName) || existing.DeviceName == "Unknown")
+                        {
+                            existing.DeviceName = device.DeviceName;
+                        }
                     }
                 }
                 StatusText = $"Found {devices.Count} device(s) ({added} new)";
@@ -177,6 +201,56 @@ public partial class MainViewModel : ObservableObject
     {
         device.IsEnabled = !device.IsEnabled;
         SaveSettings();
+    }
+
+    [RelayCommand]
+    private void ForgetDevice(DeviceViewModel? device)
+    {
+        if (device == null) return;
+        TrackedDevices.Remove(device);
+        AddLogEntry($"Forgot {device.DeviceName} ({device.DeviceId})");
+        SaveSettings();
+    }
+
+    [RelayCommand]
+    private async Task PairDeviceAsync(DeviceViewModel? device)
+    {
+        if (device == null)
+        {
+            return;
+        }
+
+        StatusText = $"Pairing {device.DeviceName}...";
+        AddLogEntry($"Pairing {device.DeviceName} ({device.DeviceId})... approve the prompt on the device.");
+        try
+        {
+            var result = await _bleScanner.PairDeviceAsync(device.DeviceId);
+            _dispatcher.Invoke(() =>
+            {
+                if (result.Success)
+                {
+                    device.IsPaired = true;
+                    device.IsEnabled = true;
+                    StatusText = $"Paired {device.DeviceName}";
+                    AddLogEntry($"Paired {device.DeviceName}: {result.Message}");
+                    SaveSettings();
+                }
+                else
+                {
+                    StatusText = $"Pairing failed: {result.Message}";
+                    AddLogEntry($"Pairing failed for {device.DeviceName}: {result.Message}");
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Pairing failed");
+            _dispatcher.Invoke(() =>
+            {
+                StatusText = $"Pairing failed: {ex.Message}";
+                AddLogEntry($"Pairing exception: {ex.Message}");
+            });
+        }
     }
 
     [RelayCommand]
@@ -239,6 +313,16 @@ public partial class MainViewModel : ObservableObject
             EventLog.RemoveAt(EventLog.Count - 1);
         }
     }
+
+    /// <summary>
+    /// Register a UI handler that prompts the user for a Bluetooth PIN. Used when a remote
+    /// device (typically Android in legacy/SSP-PIN mode) requires the PC to enter a PIN
+    /// shown on the phone.
+    /// </summary>
+    public void SetPinPromptHandler(Func<string, Task<string?>> handler)
+    {
+        _bleScanner.PinRequested = handler;
+    }
 }
 
 public partial class DeviceViewModel : ObservableObject
@@ -254,6 +338,9 @@ public partial class DeviceViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _isEnabled;
+
+    [ObservableProperty]
+    private bool _isPaired;
 
     [ObservableProperty]
     private string _lastState = "Unknown";

@@ -14,6 +14,19 @@ public partial class MainWindow : Window
         InitializeComponent();
         _viewModel = viewModel;
         DataContext = viewModel;
+
+        // Provide a UI prompt for pairings that require a PIN to be typed on the PC
+        // (some Android devices and legacy Bluetooth pairings).
+        _viewModel.SetPinPromptHandler(PromptForPinAsync);
+    }
+
+    private Task<string?> PromptForPinAsync(string deviceAddress)
+    {
+        return Dispatcher.InvokeAsync(() =>
+        {
+            var dialog = new PinPromptWindow(deviceAddress) { Owner = this };
+            return dialog.ShowDialog() == true ? dialog.Pin : null;
+        }).Task;
     }
 
     private void Calibrate_Click(object sender, RoutedEventArgs e)
