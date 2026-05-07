@@ -120,6 +120,48 @@ public partial class MainViewModel : ObservableObject
                 IsPaired = false
             });
         }
+
+        // Refresh the IsPaired status of tracked devices in the background so the
+        // "Paired" column reflects the OS pairing state on first open, without
+        // requiring the user to click Discover. Fast — no advertisement scan.
+        _ = RefreshPairedStatusAsync();
+    }
+
+    private async Task RefreshPairedStatusAsync()
+    {
+        try
+        {
+            var paired = await _bleScanner.GetPairedDevicesAsync();
+            if (paired.Count == 0)
+            {
+                return;
+            }
+
+            var pairedById = paired.ToDictionary(p => p.DeviceId, StringComparer.OrdinalIgnoreCase);
+
+            _dispatcher.Invoke(() =>
+            {
+                foreach (var device in TrackedDevices)
+                {
+                    if (pairedById.TryGetValue(device.DeviceId, out var match))
+                    {
+                        device.IsPaired = true;
+                        if (string.IsNullOrWhiteSpace(device.DeviceName) || device.DeviceName == "Unknown")
+                        {
+                            device.DeviceName = match.DeviceName;
+                        }
+                    }
+                    else
+                    {
+                        device.IsPaired = false;
+                    }
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            AddLogEntry($"Could not refresh paired status: {ex.Message}");
+        }
     }
 
     [RelayCommand]
@@ -185,6 +227,17 @@ public partial class MainViewModel : ObservableObject
                 AddLogEntry($"Discovery failed: {ex.Message}");
             });
         }
+    }
+
+    /// <summary>
+    /// Apply a calibrated TX-power reference (RSSI at the user's chosen "near"
+    /// distance) so the distance display reflects real hardware.
+    /// </summary>
+    public void ApplyTxPowerReference(double referenceRssi)
+    {
+        _settings.TxPowerDbm = (int)Math.Round(referenceRssi);
+        _distanceEstimator.Configure(referenceRssi, _settings.PathLossExponent);
+        AddLogEntry($"Distance reference calibrated: {referenceRssi:F1} dBm at near distance");
     }
 
     [RelayCommand]
@@ -326,10 +379,11 @@ public partial class MainViewModel : ObservableObject
         {
             CurrentRssi = evt.Rssi;
             SmoothedRssi = evt.SmoothedRssi;
-            if (_settings.EnableDistanceMode)
-            {
-                DistanceMeters = _distanceEstimator.EstimateDistance(evt.SmoothedRssi);
-            }
+            // Distance is always displayed. The estimator is calibrated against
+            // the user's device during the calibration wizard (its near-phase
+            // mean RSSI is captured as the reference). BLE distance estimates
+            // are inherently noisy so this is a relative gauge, not survey-grade.
+            DistanceMeters = _distanceEstimator.EstimateDistance(evt.SmoothedRssi);
 
             // Continuous live signal graph (every reading, not just state changes).
             SignalGraph.AddDataPoint(evt.Timestamp, evt.Rssi, evt.SmoothedRssi);

@@ -6,8 +6,8 @@ namespace ProximityD.Filters;
 /// </summary>
 public class PathLossDistanceEstimator
 {
-    private readonly double _txPowerDbm;
-    private readonly double _pathLossExponent;
+    private double _txPowerDbm;
+    private double _pathLossExponent;
 
     /// <summary>
     /// Initializes a new instance of PathLossDistanceEstimator.
@@ -30,6 +30,21 @@ public class PathLossDistanceEstimator
 
     /// <summary>Gets the configured path loss exponent.</summary>
     public double PathLossExponent => _pathLossExponent;
+
+    /// <summary>
+    /// Updates the calibration parameters. Used after the calibration wizard
+    /// captures a per-device reference RSSI so the distance display reflects
+    /// real hardware rather than the generic -59 dBm default.
+    /// </summary>
+    public void Configure(double txPowerDbm, double pathLossExponent)
+    {
+        if (pathLossExponent <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(pathLossExponent), "Path loss exponent must be positive.");
+        }
+        _txPowerDbm = txPowerDbm;
+        _pathLossExponent = pathLossExponent;
+    }
 
     /// <summary>
     /// Estimates distance in meters from an RSSI reading.

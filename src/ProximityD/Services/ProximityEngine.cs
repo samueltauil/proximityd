@@ -20,6 +20,14 @@ public class ProximityEngine : IDisposable
     public event EventHandler<ProximityEvent>? ProximityChanged;
 
     /// <summary>
+    /// When true (default), the first state transition observed for each
+    /// device is suppressed so the app does not fire lock/unlock on launch
+    /// based on a cold filter or a single advertisement. Pattern borrowed
+    /// from BlueProximity (ignoreFirstTransition).
+    /// </summary>
+    public bool SuppressFirstTransition { get; set; } = true;
+
+    /// <summary>
     /// Fired for every processed reading (not just state transitions). Used by UI for
     /// real-time signal-graph plotting and calibration sample collection.
     /// </summary>
@@ -67,6 +75,20 @@ public class ProximityEngine : IDisposable
             {
                 var previousState = state.CurrentState;
                 state.CurrentState = newState;
+
+                // Suppress the very first state transition after startup: the
+                // filter is still warming up, advert cadence may be irregular,
+                // and the user shouldn't see a spurious lock or unlock just
+                // because the app launched. Pattern borrowed from
+                // BlueProximity (ignoreFirstTransition).
+                if (SuppressFirstTransition && state.IgnoreFirstTransition)
+                {
+                    state.IgnoreFirstTransition = false;
+                    _logger.LogInformation(
+                        "Device {DeviceName} ({DeviceId}) first transition {OldState} -> {NewState} suppressed (RSSI: {Rssi}, Smoothed: {Smoothed:F1})",
+                        deviceName, deviceId, previousState, newState, rssi, smoothedRssi);
+                    return newState;
+                }
 
                 _logger.LogInformation(
                     "Device {DeviceName} ({DeviceId}) state changed: {OldState} -> {NewState} (RSSI: {Rssi}, Smoothed: {Smoothed:F1})",
@@ -224,6 +246,13 @@ public class ProximityEngine : IDisposable
         public DateTime LastSeen { get; set; }
         public DateTime? WeakSignalStart { get; set; }
         public DateTime? StrongSignalStart { get; set; }
+
+        /// <summary>
+        /// True until the first state transition for this device has been
+        /// observed and suppressed. Prevents firing lock/unlock on app start
+        /// based on a cold filter or a single advertisement.
+        /// </summary>
+        public bool IgnoreFirstTransition { get; set; } = true;
     }
 }
 

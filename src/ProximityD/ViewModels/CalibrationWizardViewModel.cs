@@ -52,6 +52,15 @@ public partial class CalibrationWizardViewModel : ObservableObject
     [ObservableProperty]
     private double _recommendedUnlockThreshold;
 
+    /// <summary>
+    /// Median RSSI captured during the near-calibration phase. Used as the
+    /// path-loss reference (TX power at the user's chosen "near" distance) so
+    /// the distance display reflects the actual phone/laptop combo rather than
+    /// the generic -59 dBm default.
+    /// </summary>
+    [ObservableProperty]
+    private double _recommendedTxPowerDbm;
+
     [ObservableProperty]
     private int _sampleCount;
 
@@ -244,7 +253,8 @@ public partial class CalibrationWizardViewModel : ObservableObject
         ThresholdsApplied?.Invoke(this, new ThresholdRecommendation
         {
             LockThreshold = (int)Math.Round(RecommendedLockThreshold),
-            UnlockThreshold = (int)Math.Round(RecommendedUnlockThreshold)
+            UnlockThreshold = (int)Math.Round(RecommendedUnlockThreshold),
+            ReferenceRssiAtNear = RecommendedTxPowerDbm
         });
         WizardClosed?.Invoke(this, EventArgs.Empty);
     }
@@ -344,6 +354,11 @@ public partial class CalibrationWizardViewModel : ObservableObject
         var nearMean = _nearSamples.Average();
         var awayMean = _awaySamples.Average();
 
+        // Capture near-phase mean RSSI as the path-loss reference ("TX power
+        // at near distance"). This makes the distance display calibrated to
+        // the user's actual hardware.
+        RecommendedTxPowerDbm = nearMean;
+
         // Unlock threshold: near mean minus safety margin (so device must be close to unlock)
         RecommendedUnlockThreshold = nearMean - UnlockSafetyMargin;
         // Lock threshold: away mean plus a small trigger margin (trigger lock before fully away)
@@ -400,6 +415,13 @@ public class ThresholdRecommendation
 {
     public int LockThreshold { get; set; }
     public int UnlockThreshold { get; set; }
+
+    /// <summary>
+    /// Median RSSI captured at the user's "near" distance during calibration.
+    /// Applied as the distance estimator's TX-power reference so the meters
+    /// display is grounded in real hardware.
+    /// </summary>
+    public double ReferenceRssiAtNear { get; set; }
 }
 
 /// <summary>An option in the calibration device picker.</summary>

@@ -134,7 +134,6 @@
                                     </GridViewColumn.CellTemplate>
                                 </GridViewColumn>
                                 <GridViewColumn Header="ID" Width="160" DisplayMemberBinding="{Binding DeviceId}"/>
-                                <GridViewColumn Header="State" Width="90" DisplayMemberBinding="{Binding LastState}"/>
                                 <GridViewColumn Header="RSSI" Width="60" DisplayMemberBinding="{Binding LastRssi}"/>
                                 <GridViewColumn Header="Paired" Width="60">
                                     <GridViewColumn.CellTemplate>

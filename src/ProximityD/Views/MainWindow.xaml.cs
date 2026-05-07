@@ -98,6 +98,10 @@ public partial class MainWindow : Window
     {
         _viewModel.LockThreshold = recommendation.LockThreshold;
         _viewModel.UnlockThreshold = recommendation.UnlockThreshold;
+        if (recommendation.ReferenceRssiAtNear < 0)
+        {
+            _viewModel.ApplyTxPowerReference(recommendation.ReferenceRssiAtNear);
+        }
         _viewModel.SaveSettingsCommand.Execute(null);
         UnsubscribeWizardEvents();
     }

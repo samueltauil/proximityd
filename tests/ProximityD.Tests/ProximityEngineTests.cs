@@ -95,7 +95,7 @@ public class ProximityEngineTests
     [Fact]
     public void ProcessReading_RaisesProximityChangedEvent()
     {
-        using var engine = new ProximityEngine(_loggerMock.Object, _settings);
+        using var engine = new ProximityEngine(_loggerMock.Object, _settings) { SuppressFirstTransition = false };
         var events = new List<ProximityEvent>();
         engine.ProximityChanged += (_, e) => events.Add(e);
 
@@ -159,7 +159,7 @@ public class ProximityEngineTests
     public void ProcessReading_WithKalmanFilter_SmoothsRssi()
     {
         _settings.FilterType = SignalFilterType.Kalman;
-        using var engine = new ProximityEngine(_loggerMock.Object, _settings);
+        using var engine = new ProximityEngine(_loggerMock.Object, _settings) { SuppressFirstTransition = false };
         var events = new List<ProximityEvent>();
         engine.ProximityChanged += (_, e) => events.Add(e);
 

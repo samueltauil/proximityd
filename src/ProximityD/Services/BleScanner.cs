@@ -129,6 +129,95 @@ public class BleScanner : IDisposable
     }
 
     /// <summary>
+    /// Fast enumeration of currently paired Bluetooth devices (BLE + classic) without
+    /// performing any advertisement scan. Suitable for refreshing the "Paired" column
+    /// at app startup.
+    /// </summary>
+    public async Task<List<DiscoveredDevice>> GetPairedDevicesAsync(CancellationToken cancellationToken = default)
+    {
+        var devices = new Dictionary<string, DiscoveredDevice>(StringComparer.OrdinalIgnoreCase);
+
+#if WINDOWS
+        try
+        {
+            var bleSelector = BluetoothLEDevice.GetDeviceSelectorFromPairingState(true);
+            var pairedBle = await DeviceInformation.FindAllAsync(bleSelector);
+            foreach (var device in pairedBle)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                string addr;
+                try
+                {
+                    using var bleDevice = await BluetoothLEDevice.FromIdAsync(device.Id);
+                    addr = bleDevice != null ? bleDevice.BluetoothAddress.ToString("X12") : device.Id;
+                }
+                catch
+                {
+                    addr = device.Id;
+                }
+
+                devices[addr] = new DiscoveredDevice
+                {
+                    DeviceId = addr,
+                    DeviceName = string.IsNullOrWhiteSpace(device.Name) ? "Unknown" : device.Name,
+                    IsPaired = true
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to enumerate paired BLE devices at startup");
+        }
+
+        try
+        {
+            var classicSelector = Windows.Devices.Bluetooth.BluetoothDevice.GetDeviceSelectorFromPairingState(true);
+            var pairedClassic = await DeviceInformation.FindAllAsync(classicSelector);
+            foreach (var device in pairedClassic)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                string addr;
+                try
+                {
+                    using var classic = await Windows.Devices.Bluetooth.BluetoothDevice.FromIdAsync(device.Id);
+                    addr = classic != null ? classic.BluetoothAddress.ToString("X12") : device.Id;
+                }
+                catch
+                {
+                    addr = device.Id;
+                }
+
+                if (devices.TryGetValue(addr, out var existing))
+                {
+                    existing.IsPaired = true;
+                    if (string.IsNullOrWhiteSpace(existing.DeviceName) || existing.DeviceName == "Unknown")
+                    {
+                        existing.DeviceName = device.Name ?? existing.DeviceName;
+                    }
+                }
+                else
+                {
+                    devices[addr] = new DiscoveredDevice
+                    {
+                        DeviceId = addr,
+                        DeviceName = string.IsNullOrWhiteSpace(device.Name) ? "Unknown" : device.Name,
+                        IsPaired = true
+                    };
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to enumerate paired classic devices at startup");
+        }
+#else
+        await Task.CompletedTask;
+#endif
+
+        return devices.Values.ToList();
+    }
+
+    /// <summary>
     /// Discover available BLE devices for pairing/tracking.
     /// Returns paired devices and any nearby unpaired devices observed via active
     /// advertisement scanning during the discovery window.
