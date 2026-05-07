@@ -233,7 +233,11 @@ public partial class CalibrationWizardViewModel : ObservableObject
 
     private static double Median(List<double> values)
     {
-        if (values.Count == 0) return 0;
+        if (values.Count == 0)
+        {
+            return 0;
+        }
+
         var sorted = values.OrderBy(v => v).ToList();
         var mid = sorted.Count / 2;
         return sorted.Count % 2 == 0
@@ -326,7 +330,11 @@ public partial class CalibrationWizardViewModel : ObservableObject
         // Surface live progress: total samples across all addresses, plus the
         // current best (closest) candidate.
         var totalSamples = 0;
-        foreach (var b in _bucketedSamples.Values) totalSamples += b.Count;
+        foreach (var b in _bucketedSamples.Values)
+        {
+            totalSamples += b.Count;
+        }
+
         SampleCount = totalSamples;
 
         var best = _bucketedSamples

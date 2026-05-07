@@ -123,7 +123,9 @@ public class WindowsActionService
     private void WakeDisplay()
     {
         if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
             return;
+        }
 
         try
         {

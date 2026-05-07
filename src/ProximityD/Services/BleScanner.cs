@@ -509,9 +509,16 @@ public class BleScanner : IDisposable
         {
             try
             {
-                if (info == null) return;
+                if (info == null)
+                {
+                    return;
+                }
+
                 var name = info.Name;
-                if (string.IsNullOrWhiteSpace(name)) return;
+                if (string.IsNullOrWhiteSpace(name))
+                {
+                    return;
+                }
 
                 string? addr = null;
                 if (info.Properties.TryGetValue("System.Devices.Aep.DeviceAddress", out var raw) && raw is string s)
@@ -519,7 +526,10 @@ public class BleScanner : IDisposable
                     // Format e.g. "aa:bb:cc:dd:ee:ff"
                     addr = s.Replace(":", string.Empty).Replace("-", string.Empty).ToUpperInvariant();
                 }
-                if (string.IsNullOrWhiteSpace(addr)) return;
+                if (string.IsNullOrWhiteSpace(addr))
+                {
+                    return;
+                }
 
                 lock (devices)
                 {
@@ -542,7 +552,9 @@ public class BleScanner : IDisposable
                         {
                             if (!ulong.TryParse(kv.Key, System.Globalization.NumberStyles.HexNumber,
                                     System.Globalization.CultureInfo.InvariantCulture, out var bleAddr))
+                            {
                                 continue;
+                            }
 
                             var diff = classicAddr > bleAddr ? classicAddr - bleAddr : bleAddr - classicAddr;
                             if (diff <= 1 && IsPlaceholderName(kv.Value.DeviceName))
@@ -674,11 +686,26 @@ public class BleScanner : IDisposable
 
     private static bool IsPlaceholderName(string name)
     {
-        if (string.IsNullOrWhiteSpace(name)) return true;
-        if (name.StartsWith("Unknown", StringComparison.OrdinalIgnoreCase)) return true;
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return true;
+        }
+
+        if (name.StartsWith("Unknown", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
         // Manufacturer-data labels we generated are also placeholders for the purpose of this pass.
-        if (name.EndsWith(" device", StringComparison.OrdinalIgnoreCase)) return true;
-        if (name.Equals("Google (Fast Pair)", StringComparison.OrdinalIgnoreCase)) return true;
+        if (name.EndsWith(" device", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (name.Equals("Google (Fast Pair)", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
         return false;
     }
 
@@ -758,7 +785,10 @@ public class BleScanner : IDisposable
     /// </summary>
     private static string ExtractAdvertisementName(BluetoothLEAdvertisement advertisement)
     {
-        if (advertisement == null) return string.Empty;
+        if (advertisement == null)
+        {
+            return string.Empty;
+        }
 
         if (!string.IsNullOrWhiteSpace(advertisement.LocalName))
         {
@@ -954,29 +984,33 @@ public class BleScanner : IDisposable
             switch (md.CompanyId)
             {
                 case 0x004C: // Apple
-                {
-                    // Read first payload byte to distinguish iPhone from AirPods/AirTags.
-                    if (md.Data == null || md.Data.Length == 0)
                     {
-                        continue;
-                    }
-                    try
-                    {
-                        var reader = Windows.Storage.Streams.DataReader.FromBuffer(md.Data);
-                        if (reader.UnconsumedBufferLength == 0) continue;
-                        var subtype = reader.ReadByte();
-                        // 0x10 Nearby Info, 0x0F Nearby Action — iPhone/iPad/Mac.
-                        if (subtype == 0x10 || subtype == 0x0F)
+                        // Read first payload byte to distinguish iPhone from AirPods/AirTags.
+                        if (md.Data == null || md.Data.Length == 0)
                         {
-                            return true;
+                            continue;
                         }
+                        try
+                        {
+                            var reader = Windows.Storage.Streams.DataReader.FromBuffer(md.Data);
+                            if (reader.UnconsumedBufferLength == 0)
+                            {
+                                continue;
+                            }
+
+                            var subtype = reader.ReadByte();
+                            // 0x10 Nearby Info, 0x0F Nearby Action — iPhone/iPad/Mac.
+                            if (subtype == 0x10 || subtype == 0x0F)
+                            {
+                                return true;
+                            }
+                        }
+                        catch
+                        {
+                            // ignore decode errors for this section
+                        }
+                        break;
                     }
-                    catch
-                    {
-                        // ignore decode errors for this section
-                    }
-                    break;
-                }
                 case 0x0075: // Samsung
                 case 0x00E0: // Google
                 case 0x038F: // Xiaomi

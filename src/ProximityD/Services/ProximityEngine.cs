@@ -239,7 +239,9 @@ public class ProximityEngine : IDisposable
         foreach (var state in _deviceStates.Values)
         {
             if (state.Filter is KalmanFilterAdapter kalman)
+            {
                 kalman.Reconfigure(processNoise, measurementNoise);
+            }
         }
     }
 

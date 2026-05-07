@@ -288,7 +288,11 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     private void ForgetDevice(DeviceViewModel? device)
     {
-        if (device == null) return;
+        if (device == null)
+        {
+            return;
+        }
+
         TrackedDevices.Remove(device);
         AddLogEntry($"Forgot {device.DeviceName} ({device.DeviceId})");
         SaveSettings();
@@ -433,7 +437,11 @@ public partial class MainViewModel : ObservableObject
 
     private void OnStatusChanged(object? sender, string status)
     {
-        if (_suppressBackgroundStatus) return;
+        if (_suppressBackgroundStatus)
+        {
+            return;
+        }
+
         _dispatcher.BeginInvoke(() => StatusText = status);
     }
 
