@@ -17,6 +17,15 @@ namespace ProximityD;
 
 public partial class App : Application
 {
+    // Stable, app-specific identifier. Per-user (Local\) so two different Windows
+    // accounts can each run their own instance.
+    private const string SingleInstanceMutexName = "Local\\ProximityD.SingleInstance.Mutex.{4F1B2C3D-7E5A-4B9F-8A1D-2C3E4F5A6B7C}";
+    private const string SingleInstanceSignalName = "Local\\ProximityD.SingleInstance.Signal.{4F1B2C3D-7E5A-4B9F-8A1D-2C3E4F5A6B7C}";
+
+    private static System.Threading.Mutex? s_singleInstanceMutex;
+    private System.Threading.EventWaitHandle? _showSignal;
+    private System.Threading.CancellationTokenSource? _showSignalCts;
+
     private IHost? _host;
     private TaskbarIcon? _trayIcon;
     private MainWindow? _mainWindow;
@@ -25,6 +34,38 @@ public partial class App : Application
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        // Single-instance enforcement: try to acquire a named mutex. If another
+        // instance already owns it, signal that instance to surface its window
+        // and exit immediately.
+        s_singleInstanceMutex = new System.Threading.Mutex(initiallyOwned: true, SingleInstanceMutexName, out var createdNew);
+        if (!createdNew)
+        {
+            try
+            {
+                if (System.Threading.EventWaitHandle.TryOpenExisting(SingleInstanceSignalName, out var existing))
+                {
+                    existing.Set();
+                    existing.Dispose();
+                }
+            }
+            catch
+            {
+                // best-effort; even if signaling fails we still must not start a second instance.
+            }
+
+            // Release our handle on the mutex (we never owned it) and shut down.
+            s_singleInstanceMutex.Dispose();
+            s_singleInstanceMutex = null;
+            Shutdown();
+            return;
+        }
+
+        // We are the primary instance; set up a wait handle that secondary
+        // launches will set to ask us to bring the window forward.
+        _showSignal = new System.Threading.EventWaitHandle(false, System.Threading.EventResetMode.AutoReset, SingleInstanceSignalName);
+        _showSignalCts = new System.Threading.CancellationTokenSource();
+        _ = System.Threading.Tasks.Task.Run(() => WaitForShowRequestsAsync(_showSignalCts.Token));
 
         var settings = AppSettings.Load();
         _settings = settings;
@@ -161,6 +202,7 @@ public partial class App : Application
             _host.Dispose();
         }
 
+        ReleaseSingleInstanceHandles();
         Log.CloseAndFlush();
         Shutdown();
     }
@@ -175,8 +217,57 @@ public partial class App : Application
             _host.Dispose();
         }
 
+        ReleaseSingleInstanceHandles();
         Log.CloseAndFlush();
         base.OnExit(e);
+    }
+
+    private void ReleaseSingleInstanceHandles()
+    {
+        try { _showSignalCts?.Cancel(); } catch { }
+        try { _showSignal?.Set(); } catch { }
+        _showSignalCts?.Dispose();
+        _showSignalCts = null;
+        _showSignal?.Dispose();
+        _showSignal = null;
+
+        if (s_singleInstanceMutex != null)
+        {
+            try { s_singleInstanceMutex.ReleaseMutex(); } catch { }
+            s_singleInstanceMutex.Dispose();
+            s_singleInstanceMutex = null;
+        }
+    }
+
+    private void WaitForShowRequestsAsync(System.Threading.CancellationToken token)
+    {
+        var handle = _showSignal;
+        if (handle == null)
+        {
+            return;
+        }
+
+        var waitHandles = new System.Threading.WaitHandle[] { handle, token.WaitHandle };
+        while (!token.IsCancellationRequested)
+        {
+            int signaled;
+            try
+            {
+                signaled = System.Threading.WaitHandle.WaitAny(waitHandles);
+            }
+            catch (ObjectDisposedException)
+            {
+                return;
+            }
+
+            if (signaled != 0)
+            {
+                return;
+            }
+
+            // Marshal to UI thread and surface the main window.
+            Dispatcher.BeginInvoke(new Action(() => _mainWindow?.ShowFromTray()));
+        }
     }
 
     private static Icon LoadAppIcon()
