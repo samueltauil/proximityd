@@ -44,11 +44,14 @@ public class KalmanFilter
             return _estimate;
         }
 
-        // Adaptive process noise: if the new reading is far from the current
+        // Adaptive process noise: if the new reading deviates from the current
         // estimate the user is probably actually moving (not just RSSI noise),
         // so temporarily inflate Q so the filter catches up quickly. Without
         // this, a low base Q kept the estimate "stuck" — moving the phone a
         // few meters away barely moved the smoothed value.
+        //
+        // Threshold is 2 dB (down from 4): real-world walk-away produces
+        // gradual 3-5 dB drops per reading, which the old threshold missed.
         //
         // Use an *absolute* (innovation-squared) boost rather than a multiple
         // of the base Q so the response is consistent regardless of the
@@ -56,12 +59,13 @@ public class KalmanFilter
         double innovation = measurement - _estimate;
         double absInnovation = Math.Abs(innovation);
         double adaptiveProcessNoise = _processNoise;
-        if (absInnovation > 4.0)
+        if (absInnovation > 2.0)
         {
-            double excess = absInnovation - 4.0;
-            // 6 dB jump  -> Q_eff ~= max(Q,  4)  -> gain ~ 0.3 (with R=10)
-            // 10 dB jump -> Q_eff ~= max(Q, 36)  -> gain ~ 0.79
-            // 15 dB jump -> Q_eff ~= max(Q,121)  -> gain ~ 0.92
+            double excess = absInnovation - 2.0;
+            //  3 dB step -> Q_eff ~= max(Q,  1)  -> gain ramps up
+            //  6 dB step -> Q_eff ~= max(Q, 16)  -> gain ~ 0.80 (R=4)
+            // 10 dB step -> Q_eff ~= max(Q, 64)  -> gain ~ 0.94
+            // 15 dB step -> Q_eff ~= max(Q,169)  -> gain ~ 0.98
             adaptiveProcessNoise = Math.Max(_processNoise, excess * excess);
         }
 

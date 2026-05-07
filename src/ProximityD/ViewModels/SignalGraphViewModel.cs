@@ -25,13 +25,22 @@ public partial class SignalGraphViewModel : ObservableObject
     private readonly object _lock = new();
 
 #if WINDOWS
-    private PlotModel? _plotModel;
-    private LineSeries? _rawRssiSeries;
-    private LineSeries? _smoothedRssiSeries;
+    private PlotModel _plotModel = null!;
+    private LineSeries _rawRssiSeries = null!;
+    private LineSeries _smoothedRssiSeries = null!;
 
     /// <summary>Gets the OxyPlot model for binding in XAML.</summary>
-    public PlotModel PlotModel => _plotModel ??= CreatePlotModel();
+    public PlotModel PlotModel => _plotModel;
+#endif
 
+    public SignalGraphViewModel()
+    {
+#if WINDOWS
+        _plotModel = CreatePlotModel();
+#endif
+    }
+
+#if WINDOWS
     private PlotModel CreatePlotModel()
     {
         var model = new PlotModel { Title = "Signal Strength" };

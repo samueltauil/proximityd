@@ -9,7 +9,7 @@ Settings are stored in `%LOCALAPPDATA%\ProximityD\settings.json`.
 | `ScanIntervalMs` | 2000 | How often to check signal (ms) |
 | `LockRssiThreshold` | -75 | RSSI below this → device is far |
 | `UnlockRssiThreshold` | -65 | RSSI above this → device is near |
-| `LockDelaySeconds` | 10 | Seconds below threshold before locking |
+| `LockDelaySeconds` | 3 | Seconds below threshold before locking |
 | `UnlockDelaySeconds` | 5 | Seconds above threshold before unlocking |
 | `DeviceLostTimeoutSeconds` | 30 | Seconds of no signal before device is considered lost |
 | `EnableAutoLock` | true | Automatically lock workstation |

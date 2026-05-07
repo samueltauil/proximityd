@@ -24,7 +24,7 @@ public class AppSettings
     public int UnlockRssiThreshold { get; set; } = -65;
 
     /// <summary>Duration in seconds the signal must be below lock threshold before locking.</summary>
-    public int LockDelaySeconds { get; set; } = 5;
+    public int LockDelaySeconds { get; set; } = 3;
 
     /// <summary>Duration in seconds the signal must be above unlock threshold before unlocking.</summary>
     public int UnlockDelaySeconds { get; set; } = 5;

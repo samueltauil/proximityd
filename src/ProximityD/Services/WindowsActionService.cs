@@ -117,8 +117,8 @@ public class WindowsActionService
     }
 
     /// <summary>
-    /// Wake the display from sleep/off state by simulating a small mouse movement.
-    /// This causes the lock screen to appear so Windows Hello can authenticate.
+    /// Wake the display and dismiss the lock screen cover so the credential
+    /// prompt (password / PIN / Windows Hello) is shown immediately.
     /// </summary>
     private void WakeDisplay()
     {
@@ -127,27 +127,62 @@ public class WindowsActionService
 
         try
         {
-            // Simulate a tiny mouse move (1px then back) to wake the display
-            // without visibly moving the cursor. This is the standard technique
-            // used by BLE proximity unlock utilities on Windows.
-            var inputs = new NativeMethods.INPUT[2];
+            // Step 1: mouse move wakes the display from sleep/off.
+            var wakeInputs = new NativeMethods.INPUT[2];
 
-            inputs[0].type = NativeMethods.INPUT_MOUSE;
-            inputs[0].mi.dx = 1;
-            inputs[0].mi.dy = 0;
-            inputs[0].mi.dwFlags = NativeMethods.MOUSEEVENTF_MOVE;
+            wakeInputs[0].type = NativeMethods.INPUT_MOUSE;
+            wakeInputs[0].u.mi.dx = 1;
+            wakeInputs[0].u.mi.dy = 0;
+            wakeInputs[0].u.mi.dwFlags = NativeMethods.MOUSEEVENTF_MOVE;
 
-            inputs[1].type = NativeMethods.INPUT_MOUSE;
-            inputs[1].mi.dx = -1;
-            inputs[1].mi.dy = 0;
-            inputs[1].mi.dwFlags = NativeMethods.MOUSEEVENTF_MOVE;
+            wakeInputs[1].type = NativeMethods.INPUT_MOUSE;
+            wakeInputs[1].u.mi.dx = -1;
+            wakeInputs[1].u.mi.dy = 0;
+            wakeInputs[1].u.mi.dwFlags = NativeMethods.MOUSEEVENTF_MOVE;
 
-            NativeMethods.SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<NativeMethods.INPUT>());
-            _logger.LogDebug("Display wake signal sent via SendInput");
+            NativeMethods.SendInput((uint)wakeInputs.Length, wakeInputs, Marshal.SizeOf<NativeMethods.INPUT>());
+            _logger.LogDebug("Display wake signal sent via mouse move");
+
+            // Step 2: After a brief pause for the display to power on,
+            // send Enter to dismiss the lock screen cover (clock/wallpaper)
+            // and reveal the credential prompt.
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(600);
+                DismissLockScreenCover();
+            });
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to wake display");
+        }
+    }
+
+    /// <summary>
+    /// Send an Enter key press to dismiss the Windows lock screen cover
+    /// (the clock/wallpaper overlay) so the credential prompt appears.
+    /// </summary>
+    private void DismissLockScreenCover()
+    {
+        try
+        {
+            var inputs = new NativeMethods.INPUT[2];
+
+            // Key down
+            inputs[0].type = NativeMethods.INPUT_KEYBOARD;
+            inputs[0].u.ki.wVk = NativeMethods.VK_RETURN;
+
+            // Key up
+            inputs[1].type = NativeMethods.INPUT_KEYBOARD;
+            inputs[1].u.ki.wVk = NativeMethods.VK_RETURN;
+            inputs[1].u.ki.dwFlags = NativeMethods.KEYEVENTF_KEYUP;
+
+            NativeMethods.SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<NativeMethods.INPUT>());
+            _logger.LogDebug("Lock screen cover dismissed via Enter key");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to dismiss lock screen cover");
         }
     }
 
@@ -192,13 +227,23 @@ public class WindowsActionService
         public static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
 
         public const uint INPUT_MOUSE = 0;
+        public const uint INPUT_KEYBOARD = 1;
         public const uint MOUSEEVENTF_MOVE = 0x0001;
+        public const uint KEYEVENTF_KEYUP = 0x0002;
+        public const ushort VK_RETURN = 0x0D;
 
         [StructLayout(LayoutKind.Sequential)]
         public struct INPUT
         {
             public uint type;
-            public MOUSEINPUT mi;
+            public INPUTUNION u;
+        }
+
+        [StructLayout(LayoutKind.Explicit)]
+        public struct INPUTUNION
+        {
+            [FieldOffset(0)] public MOUSEINPUT mi;
+            [FieldOffset(0)] public KEYBDINPUT ki;
         }
 
         [StructLayout(LayoutKind.Sequential)]
@@ -207,6 +252,16 @@ public class WindowsActionService
             public int dx;
             public int dy;
             public uint mouseData;
+            public uint dwFlags;
+            public uint time;
+            public IntPtr dwExtraInfo;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct KEYBDINPUT
+        {
+            public ushort wVk;
+            public ushort wScan;
             public uint dwFlags;
             public uint time;
             public IntPtr dwExtraInfo;

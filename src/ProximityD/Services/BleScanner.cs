@@ -21,7 +21,7 @@ public class BleScanner : IDisposable
     private readonly ILogger<BleScanner> _logger;
     private readonly AppSettings _settings;
     private CancellationTokenSource? _scanCts;
-    private bool _isScanning;
+    private volatile bool _isScanning;
 
 #if WINDOWS
     private BluetoothLEAdvertisementWatcher? _watcher;

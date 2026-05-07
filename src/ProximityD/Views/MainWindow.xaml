@@ -260,7 +260,7 @@
 
         <!-- Footer -->
         <Border Grid.Row="3" Margin="0,10,0,0" Padding="5">
-            <TextBlock Text="ProximityD v1.0 • Minimize to system tray" Foreground="#ADB5BD" FontSize="11"/>
+            <TextBlock Text="ProximityD v0.0.2 • Minimize to system tray" Foreground="#ADB5BD" FontSize="11"/>
         </Border>
     </Grid>
 </Window>

@@ -11,14 +11,28 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
 </p>
 
-A modern Windows Bluetooth proximity detection application inspired by [BlueProximity](https://blueproximity.sourceforge.net/). Automatically locks your PC when your Bluetooth device (phone, watch, etc.) moves out of range, and optionally signals readiness to unlock when it returns.
+A modern Windows Bluetooth proximity detection application inspired by [BlueProximity](https://blueproximity.sourceforge.net/). Automatically locks your PC when your Bluetooth device (phone, watch, etc.) moves out of range, and wakes the display to present the credential prompt when it returns.
+
+<p align="center">
+  <img src="assets/screenshot-main.png" alt="ProximityD Main Window" width="800">
+</p>
+
+<details>
+<summary>More screenshots</summary>
+
+| Settings | Signal Graph |
+|----------|-------------|
+| <img src="assets/screenshot-settings.png" alt="Settings" width="400"> | <img src="assets/screenshot-signal-graph.png" alt="Signal Graph" width="400"> |
+
+</details>
 
 ## Features
 
-- **Auto-Lock & Presence Signaling** — Locks your workstation when your device leaves range; notifies when it returns
+- **Auto-Lock & Presence-Triggered Unlock** — Locks your workstation when your device leaves range; wakes display and presents the credential prompt when it returns
 - **BLE Scanning** — Continuous monitoring of paired Bluetooth devices via WinRT APIs
-- **Kalman Filter Signal Processing** — Smooth, reliable distance estimation from noisy RSSI
+- **Adaptive Kalman Filter** — Responsive signal smoothing that tracks movement quickly while filtering jitter
 - **Hysteresis State Machine** — Separate lock/unlock thresholds with time delays to prevent false triggers
+- **Signal Filter Tuning** — Real-time Kalman Q/R sliders in the Settings UI
 - **WiFi Hybrid Presence** — Secondary network ping reduces false locks when BLE signal is weak
 - **Multi-Device Support** — Track multiple Bluetooth devices simultaneously
 - **Calibration Wizard** — Guided threshold calibration based on your real environment
@@ -66,17 +80,17 @@ Settings are stored in `%LOCALAPPDATA%\ProximityD\settings.json`. Key options:
 |---------|---------|-------------|
 | `LockRssiThreshold` | -75 | RSSI below this → device is far |
 | `UnlockRssiThreshold` | -65 | RSSI above this → device is near |
-| `LockDelaySeconds` | 10 | Seconds below threshold before locking |
+| `LockDelaySeconds` | 3 | Seconds below threshold before locking |
 | `UnlockDelaySeconds` | 5 | Seconds above threshold before unlocking |
 | `EnableAutoLock` | true | Automatically lock workstation |
-| `EnableAutoUnlock` | false | Signal presence for unlock |
+| `EnableAutoUnlock` | false | Wake display and present credential prompt |
 
 For the full settings reference and calibration guide, see [Configuration](docs/configuration.md).
 
 ## Known Limitations
 
 - Bluetooth RSSI is inherently variable — no signal-strength-based proximity system is 100% reliable
-- Windows does not allow silent programmatic unlock (by design for security)
+- Windows does not allow silent programmatic unlock (by design for security); ProximityD wakes the display and presents the credential prompt for manual authentication
 - Some BLE devices may not broadcast advertisements when the screen is off
 - UWB support is stubbed — no public Windows UWB scanning API is currently available
 

@@ -145,6 +145,7 @@ public partial class MainWindow : Window
     public void AllowClose()
     {
         _allowClose = true;
+        _viewModel.Cleanup();
     }
 
     public void ShowFromTray()

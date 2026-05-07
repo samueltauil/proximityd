@@ -499,6 +499,20 @@ public partial class MainViewModel : ObservableObject
     {
         _pairFlowHandler = handler;
     }
+
+    /// <summary>
+    /// Unsubscribe event handlers to prevent leaks when the window closes.
+    /// Called from the View's Closing handler.
+    /// </summary>
+    public void Cleanup()
+    {
+        _backgroundService.ProximityStateChanged -= OnProximityStateChanged;
+        _backgroundService.ReadingProcessed -= OnReadingProcessed;
+        _backgroundService.StatusChanged -= OnStatusChanged;
+        _bleScanner.DeviceDetected -= OnDeviceDetected;
+        _bleScanner.CalibrationReadingReceived -= OnCalibrationReading;
+        CalibrationWizard.PropertyChanged -= OnCalibrationWizardPropertyChanged;
+    }
 }
 
 public partial class DeviceViewModel : ObservableObject

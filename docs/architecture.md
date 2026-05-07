@@ -72,7 +72,7 @@ stateDiagram-v2
 
 To prevent false lock/unlock cycles, ProximityD uses separate thresholds with time delays:
 
-- **Lock triggers** when smoothed RSSI drops below `-75 dBm` for **10 seconds** continuously
+- **Lock triggers** when smoothed RSSI drops below `-75 dBm` for **3 seconds** continuously
 - **Unlock triggers** when smoothed RSSI rises above `-65 dBm` for **5 seconds** continuously
 - The **10 dBm gap** between thresholds prevents rapid toggling
 
@@ -86,7 +86,7 @@ When enabled, a secondary WiFi check pings a configured hostname or IP address. 
 ## Security Considerations
 
 - **Auto-lock**: Uses `LockWorkStation()` Win32 API — safe and reliable
-- **Auto-unlock**: Disabled by default. Windows intentionally restricts programmatic unlock for security. When enabled, ProximityD shows a system tray notification prompting Windows Hello authentication.
+- **Auto-unlock**: Disabled by default. When enabled, ProximityD wakes the display and dismisses the lock screen cover via simulated input, presenting the credential prompt (password/PIN/Windows Hello) for immediate authentication.
 - **Fail-safe**: If uncertain about proximity state, the system does NOT unlock
 - See [CredentialProvider.md](CredentialProvider.md) for information on building a Custom Windows Credential Provider for true silent auto-unlock.
 
