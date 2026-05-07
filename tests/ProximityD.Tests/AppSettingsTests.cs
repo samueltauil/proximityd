@@ -13,7 +13,7 @@ public class AppSettingsTests
         settings.ScanIntervalMs.Should().Be(2000);
         settings.LockRssiThreshold.Should().Be(-75);
         settings.UnlockRssiThreshold.Should().Be(-65);
-        settings.LockDelaySeconds.Should().Be(10);
+        settings.LockDelaySeconds.Should().Be(5);
         settings.UnlockDelaySeconds.Should().Be(5);
         settings.DeviceLostTimeoutSeconds.Should().Be(30);
         settings.EnableAutoLock.Should().BeTrue();

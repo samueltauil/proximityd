@@ -149,7 +149,7 @@ public partial class MainViewModel : ObservableObject
 
             var pairedById = paired.ToDictionary(p => p.DeviceId, StringComparer.OrdinalIgnoreCase);
 
-            _dispatcher.BeginInvoke(() =>
+            _ = _dispatcher.BeginInvoke(() =>
             {
                 foreach (var device in TrackedDevices)
                 {
@@ -183,7 +183,7 @@ public partial class MainViewModel : ObservableObject
         {
             var devices = await _bleScanner.DiscoverDevicesAsync();
 
-            _dispatcher.BeginInvoke(() =>
+            _ = _dispatcher.BeginInvoke(() =>
             {
                 int added = 0;
                 // Sort by signal strength: closest device floats to top so users can identify
@@ -231,7 +231,7 @@ public partial class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             _logger.LogError(ex, "Device discovery failed");
-            _dispatcher.BeginInvoke(() =>
+            _ = _dispatcher.BeginInvoke(() =>
             {
                 StatusText = $"Discovery failed: {ex.Message}";
                 AddLogEntry($"Discovery failed: {ex.Message}");
@@ -331,7 +331,7 @@ public partial class MainViewModel : ObservableObject
             await DiscoverDevicesAsync();
 
             // Mark this device's row as paired if the refresh confirmed it.
-            _dispatcher.BeginInvoke(() =>
+            _ = _dispatcher.BeginInvoke(() =>
             {
                 var refreshed = TrackedDevices.FirstOrDefault(d =>
                     string.Equals(d.DeviceId, device.DeviceId, StringComparison.OrdinalIgnoreCase));
@@ -352,7 +352,7 @@ public partial class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             _logger.LogError(ex, "Pairing flow failed");
-            _dispatcher.BeginInvoke(() =>
+            _ = _dispatcher.BeginInvoke(() =>
             {
                 StatusText = $"Pair error: {ex.Message}";
                 AddLogEntry($"Pair error: {ex.Message}");

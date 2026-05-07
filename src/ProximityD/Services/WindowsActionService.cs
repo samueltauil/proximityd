@@ -82,9 +82,8 @@ public class WindowsActionService
 
     /// <summary>
     /// Attempt to signal presence for unlock.
-    /// Note: Windows does not allow silent programmatic unlock for security reasons.
-    /// This method logs the event and fires an ActionPerformed event that the UI can
-    /// use to show a notification. Actual unlock requires user authentication (e.g., Windows Hello).
+    /// Wakes the display (if asleep) so Windows Hello can authenticate the user,
+    /// then shows a notification as a fallback/reminder.
     /// </summary>
     public bool SignalPresenceForUnlock()
     {
@@ -102,8 +101,12 @@ public class WindowsActionService
 
         _lastUnlockAttemptTime = DateTime.UtcNow;
 
-        _logger.LogInformation("Device returned - signaling presence. User may need to authenticate via Windows Hello.");
-        ActionPerformed?.Invoke(this, "Device detected - ready to unlock via Windows Hello");
+        _logger.LogInformation("Device returned - waking display and signaling presence for Windows Hello.");
+
+        // Wake the display so Windows Hello (face/fingerprint) can trigger
+        WakeDisplay();
+
+        ActionPerformed?.Invoke(this, "Device detected - waking display for Windows Hello");
 
         if (_settings.EnableWindowsHelloNotification)
         {
@@ -111,6 +114,41 @@ public class WindowsActionService
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Wake the display from sleep/off state by simulating a small mouse movement.
+    /// This causes the lock screen to appear so Windows Hello can authenticate.
+    /// </summary>
+    private void WakeDisplay()
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            return;
+
+        try
+        {
+            // Simulate a tiny mouse move (1px then back) to wake the display
+            // without visibly moving the cursor. This is the standard technique
+            // used by BLE proximity unlock utilities on Windows.
+            var inputs = new NativeMethods.INPUT[2];
+
+            inputs[0].type = NativeMethods.INPUT_MOUSE;
+            inputs[0].mi.dx = 1;
+            inputs[0].mi.dy = 0;
+            inputs[0].mi.dwFlags = NativeMethods.MOUSEEVENTF_MOVE;
+
+            inputs[1].type = NativeMethods.INPUT_MOUSE;
+            inputs[1].mi.dx = -1;
+            inputs[1].mi.dy = 0;
+            inputs[1].mi.dwFlags = NativeMethods.MOUSEEVENTF_MOVE;
+
+            NativeMethods.SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<NativeMethods.INPUT>());
+            _logger.LogDebug("Display wake signal sent via SendInput");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to wake display");
+        }
     }
 
     /// <summary>
@@ -149,5 +187,29 @@ public class WindowsActionService
         [DllImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static extern bool LockWorkStation();
+
+        [DllImport("user32.dll", SetLastError = true)]
+        public static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
+
+        public const uint INPUT_MOUSE = 0;
+        public const uint MOUSEEVENTF_MOVE = 0x0001;
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct INPUT
+        {
+            public uint type;
+            public MOUSEINPUT mi;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct MOUSEINPUT
+        {
+            public int dx;
+            public int dy;
+            public uint mouseData;
+            public uint dwFlags;
+            public uint time;
+            public IntPtr dwExtraInfo;
+        }
     }
 }
