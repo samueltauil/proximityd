@@ -21,10 +21,10 @@ public partial class MainViewModel : ObservableObject
     private readonly PathLossDistanceEstimator _distanceEstimator;
 
     [ObservableProperty]
-    private string _statusText = "Initializing...";
+    private string _statusText = "Starting BLE scan...";
 
     [ObservableProperty]
-    private string _proximityStateText = "Unknown";
+    private string _proximityStateText = "Waiting for signal...";
 
     [ObservableProperty]
     private bool _isScanning;
@@ -55,6 +55,12 @@ public partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private int _unlockDelay;
+
+    [ObservableProperty]
+    private double _kalmanProcessNoise;
+
+    [ObservableProperty]
+    private double _kalmanMeasurementNoise;
 
     private const int MaxEventLogEntries = 100;
 
@@ -91,6 +97,8 @@ public partial class MainViewModel : ObservableObject
         UnlockThreshold = settings.UnlockRssiThreshold;
         LockDelay = settings.LockDelaySeconds;
         UnlockDelay = settings.UnlockDelaySeconds;
+        KalmanProcessNoise = settings.KalmanProcessNoise;
+        KalmanMeasurementNoise = settings.KalmanMeasurementNoise;
 
         // Subscribe to events
         _backgroundService.ProximityStateChanged += OnProximityStateChanged;
@@ -124,14 +132,16 @@ public partial class MainViewModel : ObservableObject
         // Refresh the IsPaired status of tracked devices in the background so the
         // "Paired" column reflects the OS pairing state on first open, without
         // requiring the user to click Discover. Fast — no advertisement scan.
-        _ = RefreshPairedStatusAsync();
+        // Run on a worker thread so the WinRT enumeration cannot block the UI
+        // dispatcher while the window is being created.
+        _ = Task.Run(RefreshPairedStatusAsync);
     }
 
     private async Task RefreshPairedStatusAsync()
     {
         try
         {
-            var paired = await _bleScanner.GetPairedDevicesAsync();
+            var paired = await _bleScanner.GetPairedDevicesAsync().ConfigureAwait(false);
             if (paired.Count == 0)
             {
                 return;
@@ -139,7 +149,7 @@ public partial class MainViewModel : ObservableObject
 
             var pairedById = paired.ToDictionary(p => p.DeviceId, StringComparer.OrdinalIgnoreCase);
 
-            _dispatcher.Invoke(() =>
+            _dispatcher.BeginInvoke(() =>
             {
                 foreach (var device in TrackedDevices)
                 {
@@ -173,7 +183,7 @@ public partial class MainViewModel : ObservableObject
         {
             var devices = await _bleScanner.DiscoverDevicesAsync();
 
-            _dispatcher.Invoke(() =>
+            _dispatcher.BeginInvoke(() =>
             {
                 int added = 0;
                 // Sort by signal strength: closest device floats to top so users can identify
@@ -221,7 +231,7 @@ public partial class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             _logger.LogError(ex, "Device discovery failed");
-            _dispatcher.Invoke(() =>
+            _dispatcher.BeginInvoke(() =>
             {
                 StatusText = $"Discovery failed: {ex.Message}";
                 AddLogEntry($"Discovery failed: {ex.Message}");
@@ -249,6 +259,11 @@ public partial class MainViewModel : ObservableObject
         _settings.UnlockRssiThreshold = UnlockThreshold;
         _settings.LockDelaySeconds = LockDelay;
         _settings.UnlockDelaySeconds = UnlockDelay;
+        _settings.KalmanProcessNoise = KalmanProcessNoise;
+        _settings.KalmanMeasurementNoise = KalmanMeasurementNoise;
+
+        // Apply new Kalman parameters to live filters immediately
+        _proximityEngine.ReconfigureFilters(KalmanProcessNoise, KalmanMeasurementNoise);
 
         _settings.TrackedDevices = TrackedDevices
             .Select(d => new TrackedDeviceConfig
@@ -316,7 +331,7 @@ public partial class MainViewModel : ObservableObject
             await DiscoverDevicesAsync();
 
             // Mark this device's row as paired if the refresh confirmed it.
-            _dispatcher.Invoke(() =>
+            _dispatcher.BeginInvoke(() =>
             {
                 var refreshed = TrackedDevices.FirstOrDefault(d =>
                     string.Equals(d.DeviceId, device.DeviceId, StringComparison.OrdinalIgnoreCase));
@@ -337,7 +352,7 @@ public partial class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             _logger.LogError(ex, "Pairing flow failed");
-            _dispatcher.Invoke(() =>
+            _dispatcher.BeginInvoke(() =>
             {
                 StatusText = $"Pair error: {ex.Message}";
                 AddLogEntry($"Pair error: {ex.Message}");
@@ -358,7 +373,7 @@ public partial class MainViewModel : ObservableObject
 
     private void OnProximityStateChanged(object? sender, ProximityEvent evt)
     {
-        _dispatcher.Invoke(() =>
+        _dispatcher.BeginInvoke(() =>
         {
             ProximityStateText = evt.State.ToString();
             AddLogEntry($"[{evt.Timestamp:HH:mm:ss}] {evt.DeviceName}: {evt.State} (RSSI: {evt.Rssi}, Smoothed: {evt.SmoothedRssi:F1})");
@@ -375,10 +390,22 @@ public partial class MainViewModel : ObservableObject
 
     private void OnReadingProcessed(object? sender, ProximityEvent evt)
     {
-        _dispatcher.Invoke(() =>
+        _dispatcher.BeginInvoke(() =>
         {
             CurrentRssi = evt.Rssi;
             SmoothedRssi = evt.SmoothedRssi;
+            // Mirror the live engine state on every reading, not just on
+            // transitions. ProximityChanged is throttled by hysteresis +
+            // first-transition suppression and may never fire if the signal
+            // hovers in the dead zone, leaving the UI stuck on "Unknown".
+            ProximityStateText = evt.State.ToString();
+
+            // Reflect actual tracking activity in the status line.
+            if (!_suppressBackgroundStatus)
+            {
+                StatusText = $"Tracking {evt.DeviceName} — {evt.SmoothedRssi:F1} dBm";
+            }
+
             // Distance is always displayed. The estimator is calibrated against
             // the user's device during the calibration wizard (its near-phase
             // mean RSSI is captured as the reference). BLE distance estimates
@@ -407,12 +434,12 @@ public partial class MainViewModel : ObservableObject
     private void OnStatusChanged(object? sender, string status)
     {
         if (_suppressBackgroundStatus) return;
-        _dispatcher.Invoke(() => StatusText = status);
+        _dispatcher.BeginInvoke(() => StatusText = status);
     }
 
     private void OnDeviceDetected(object? sender, BleDeviceReading reading)
     {
-        _dispatcher.Invoke(() =>
+        _dispatcher.BeginInvoke(() =>
         {
             CurrentRssi = reading.Rssi;
             IsScanning = true;
@@ -424,7 +451,7 @@ public partial class MainViewModel : ObservableObject
         // Raw advertisement received while the wizard is collecting. Pass the
         // address through so the wizard can bucket per-device and lock onto the
         // closest one (handles iOS rotating BLE addresses).
-        _dispatcher.Invoke(() =>
+        _dispatcher.BeginInvoke(() =>
         {
             CalibrationWizard.OnRssiReading(reading.DeviceId, reading.Rssi);
             SignalGraph.AddDataPoint(reading.Timestamp, reading.Rssi, reading.Rssi);

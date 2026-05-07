@@ -67,6 +67,55 @@ public partial class App : Application
         _showSignalCts = new System.Threading.CancellationTokenSource();
         _ = System.Threading.Tasks.Task.Run(() => WaitForShowRequestsAsync(_showSignalCts.Token));
 
+        // Global exception handlers — log unhandled exceptions before the
+        // process terminates so we can diagnose freezes and crashes.
+        DispatcherUnhandledException += (_, args) =>
+        {
+            System.Diagnostics.Debug.WriteLine($"[ProximityD] UI thread exception: {args.Exception}");
+            try
+            {
+                var logDir = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "ProximityD", "logs");
+                Directory.CreateDirectory(logDir);
+                File.AppendAllText(
+                    Path.Combine(logDir, $"proximityd-crash-{DateTime.Now:yyyyMMdd-HHmmss}.log"),
+                    $"[{DateTime.Now:O}] UI UNHANDLED: {args.Exception}\n");
+            }
+            catch { /* best effort */ }
+        };
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+        {
+            var ex = args.ExceptionObject as Exception;
+            System.Diagnostics.Debug.WriteLine($"[ProximityD] AppDomain exception: {ex}");
+            try
+            {
+                var logDir = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "ProximityD", "logs");
+                Directory.CreateDirectory(logDir);
+                File.AppendAllText(
+                    Path.Combine(logDir, $"proximityd-crash-{DateTime.Now:yyyyMMdd-HHmmss}.log"),
+                    $"[{DateTime.Now:O}] APPDOMAIN UNHANDLED: {ex}\n");
+            }
+            catch { /* best effort */ }
+        };
+        TaskScheduler.UnobservedTaskException += (_, args) =>
+        {
+            System.Diagnostics.Debug.WriteLine($"[ProximityD] Unobserved task exception: {args.Exception}");
+            try
+            {
+                var logDir = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "ProximityD", "logs");
+                Directory.CreateDirectory(logDir);
+                File.AppendAllText(
+                    Path.Combine(logDir, $"proximityd-crash-{DateTime.Now:yyyyMMdd-HHmmss}.log"),
+                    $"[{DateTime.Now:O}] TASK UNOBSERVED: {args.Exception}\n");
+            }
+            catch { /* best effort */ }
+        };
+
         var settings = AppSettings.Load();
         _settings = settings;
 

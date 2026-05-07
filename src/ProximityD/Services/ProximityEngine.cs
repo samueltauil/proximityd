@@ -125,6 +125,9 @@ public class ProximityEngine : IDisposable
                     now - state.LastSeen > lostTimeout)
                 {
                     state.CurrentState = ProximityState.Lost;
+                    state.CommittedState = ProximityState.Lost;
+                    state.WeakSignalStart = null;
+                    state.StrongSignalStart = null;
                     _logger.LogWarning("Device {DeviceName} ({DeviceId}) lost - no signal for {Timeout}s",
                         state.LastKnownName, deviceId, _settings.DeviceLostTimeoutSeconds);
 
@@ -166,37 +169,44 @@ public class ProximityEngine : IDisposable
     {
         var now = DateTime.UtcNow;
 
-        // Hysteresis logic - use different thresholds for lock vs unlock
+        // Use the last *committed* state (Present/Away/Lost) as the hysteresis
+        // anchor. The transient `Uncertain` returned mid-transition must not
+        // overwrite it, otherwise a brief excursion past the lock threshold
+        // followed by readings in the dead zone would strand the device in
+        // Uncertain forever and the user would see "Unknown/Uncertain" until
+        // the signal eventually crossed the unlock threshold again.
+        var committed = state.CommittedState;
+
         if (smoothedRssi < _settings.LockRssiThreshold)
         {
-            // Signal is weak - might need to lock
-            if (state.CurrentState == ProximityState.Present || state.CurrentState == ProximityState.Uncertain)
-            {
-                // Start tracking how long signal has been weak
-                state.WeakSignalStart ??= now;
+            // Weak signal: candidate to lock. Cancel any pending unlock.
+            state.StrongSignalStart = null;
 
+            if (committed != ProximityState.Away)
+            {
+                state.WeakSignalStart ??= now;
                 if (now - state.WeakSignalStart.Value >= TimeSpan.FromSeconds(_settings.LockDelaySeconds))
                 {
                     state.WeakSignalStart = null;
-                    state.StrongSignalStart = null;
+                    state.CommittedState = ProximityState.Away;
                     return ProximityState.Away;
                 }
                 return ProximityState.Uncertain;
             }
-            return state.CurrentState;
+            return ProximityState.Away;
         }
         else if (smoothedRssi > _settings.UnlockRssiThreshold)
         {
-            // Signal is strong - device is near
+            // Strong signal: candidate to unlock. Cancel any pending lock.
             state.WeakSignalStart = null;
 
-            if (state.CurrentState == ProximityState.Away || state.CurrentState == ProximityState.Lost || state.CurrentState == ProximityState.Uncertain)
+            if (committed != ProximityState.Present)
             {
                 state.StrongSignalStart ??= now;
-
                 if (now - state.StrongSignalStart.Value >= TimeSpan.FromSeconds(_settings.UnlockDelaySeconds))
                 {
                     state.StrongSignalStart = null;
+                    state.CommittedState = ProximityState.Present;
                     return ProximityState.Present;
                 }
                 return ProximityState.Uncertain;
@@ -205,9 +215,31 @@ public class ProximityEngine : IDisposable
         }
         else
         {
-            // Signal is in the dead zone between thresholds
-            // Don't change state - this prevents oscillation
-            return state.CurrentState == ProximityState.Lost ? ProximityState.Uncertain : state.CurrentState;
+            // Dead zone between thresholds. CRITICAL: do NOT reset the matching
+            // pending timer here — natural RSSI oscillation around either
+            // threshold would otherwise restart the countdown on every bounce
+            // and the lock/unlock would never trigger. Only cancel the
+            // *opposing* candidacy (a transient excursion deep into the other
+            // zone is what should reset things), and leave the in-progress
+            // pending timer intact so it can complete on the next reading
+            // back across the threshold.
+            //
+            // Stay anchored to the last committed state (Present/Away) so the
+            // UI doesn't flicker to Uncertain on every dead-zone sample.
+            return committed == ProximityState.Lost ? ProximityState.Uncertain : committed;
+        }
+    }
+
+    /// <summary>
+    /// Reconfigure Kalman filter parameters on all live device filters.
+    /// Called when the user changes noise sliders in the Settings UI.
+    /// </summary>
+    public void ReconfigureFilters(double processNoise, double measurementNoise)
+    {
+        foreach (var state in _deviceStates.Values)
+        {
+            if (state.Filter is KalmanFilterAdapter kalman)
+                kalman.Reconfigure(processNoise, measurementNoise);
         }
     }
 
@@ -241,6 +273,14 @@ public class ProximityEngine : IDisposable
         public string LastKnownName { get; set; } = string.Empty;
         public ISignalFilter Filter { get; set; } = new PassthroughFilter();
         public ProximityState CurrentState { get; set; } = ProximityState.Lost;
+
+        /// <summary>
+        /// Last *committed* (non-transitional) state — only ever Present, Away,
+        /// or Lost. Used by <see cref="DetermineState"/> as the hysteresis
+        /// anchor so transient Uncertain readings do not strand the device.
+        /// </summary>
+        public ProximityState CommittedState { get; set; } = ProximityState.Lost;
+
         public short LastRssi { get; set; }
         public double SmoothedRssi { get; set; }
         public DateTime LastSeen { get; set; }
@@ -269,6 +309,12 @@ public class KalmanFilterAdapter : ISignalFilter
     private readonly KalmanFilter _filter;
     public KalmanFilterAdapter(KalmanFilter filter) => _filter = filter;
     public double Update(double measurement) => _filter.Update(measurement);
+
+    public void Reconfigure(double processNoise, double measurementNoise)
+    {
+        _filter.ProcessNoise = processNoise;
+        _filter.MeasurementNoise = measurementNoise;
+    }
 }
 
 public class MovingAverageFilterAdapter : ISignalFilter

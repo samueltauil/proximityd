@@ -209,6 +209,30 @@
                             </Grid>
                         </Border>
 
+                        <!-- Kalman Filter Tuning -->
+                        <TextBlock Text="Signal Filter Tuning" FontWeight="SemiBold" FontSize="14" Margin="0,15,0,5"/>
+                        <Border Style="{StaticResource CardPanel}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="200"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="60"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Responsiveness (Q)" VerticalAlignment="Center" ToolTip="Process noise — higher = faster response to movement, lower = smoother"/>
+                                <Slider Grid.Row="0" Grid.Column="1" Minimum="0.1" Maximum="5.0" Value="{Binding KalmanProcessNoise}" TickFrequency="0.1" IsSnapToTickEnabled="True"/>
+                                <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding KalmanProcessNoise, StringFormat={}{0:F1}}" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Smoothing (R)" VerticalAlignment="Center" Margin="0,10,0,0" ToolTip="Measurement noise — higher = more smoothing of jitter, lower = more responsive"/>
+                                <Slider Grid.Row="1" Grid.Column="1" Minimum="1.0" Maximum="20.0" Value="{Binding KalmanMeasurementNoise}" TickFrequency="0.5" IsSnapToTickEnabled="True" Margin="0,10,0,0"/>
+                                <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding KalmanMeasurementNoise, StringFormat={}{0:F1}}" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,10,0,0"/>
+                            </Grid>
+                        </Border>
+
                         <Button Content="Save Settings" Command="{Binding SaveSettingsCommand}" HorizontalAlignment="Left" Padding="15,8" Margin="0,15,0,0"/>
                     </StackPanel>
                 </ScrollViewer>

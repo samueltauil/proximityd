@@ -44,11 +44,11 @@ public class AppSettings
     /// <summary>Whether to start minimized to tray.</summary>
     public bool StartMinimized { get; set; } = true;
 
-    /// <summary>Kalman filter process noise parameter.</summary>
-    public double KalmanProcessNoise { get; set; } = 0.1;
+    /// <summary>Kalman filter process noise parameter. Higher = more responsive to movement, lower = smoother.</summary>
+    public double KalmanProcessNoise { get; set; } = 1.0;
 
-    /// <summary>Kalman filter measurement noise parameter.</summary>
-    public double KalmanMeasurementNoise { get; set; } = 10.0;
+    /// <summary>Kalman filter measurement noise parameter. Higher = more smoothing of jitter, lower = more responsive.</summary>
+    public double KalmanMeasurementNoise { get; set; } = 4.0;
 
     /// <summary>List of tracked device IDs.</summary>
     public List<TrackedDeviceConfig> TrackedDevices { get; set; } = new();
